@@ -11,7 +11,7 @@
 %
 addpath(genpath('.'))
  
-%% loads the Sa2RAGE data for B1 estimation
+%% Sa2RAGE protocol info and loading the Sa2RAGE data for B1 estimation
 
     Sa2RAGE.TR=2.4;
     Sa2RAGE.TRFLASH=2.75e-3;
@@ -23,7 +23,7 @@ addpath(genpath('.'))
     B1=load_untouch_nii(Sa2RAGE.B1filename)
     
     
-%% loads the MP2RAGE dataset 
+%% MP2RAGE protocol info and loading the MP2RAGE dataset 
     
     MP2RAGE.B0=7;           % in Tesla
     MP2RAGE.TR=6;           % MP2RAGE TR in seconds 
@@ -32,6 +32,14 @@ addpath(genpath('.'))
     MP2RAGE.NZslices=[35 72];% Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
     MP2RAGE.FlipDegrees=[4 5];% Flip angle of the two readouts in degrees
     MP2RAGE.filename='MP2RAGE_UNI.nii' % file
+    
+    
+    % check the properties of this MP2RAGE protocol... this happens to be a
+    % very B1 insensitive protocol
+
+    plotMP2RAGEproperties(MP2RAGE)
+
+    % load the MP2RAGE data
     MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     
     
