@@ -18,7 +18,7 @@ B1vector=1;
 flipanglea=flipangleABdegree(1);
 flipangleb=flipangleABdegree(2);
 
-T1vector=0.05:0.05:4;
+T1vector=0.05:0.05:5;
 
 
 if length(nZslices)==2
@@ -68,6 +68,7 @@ if alldata==0
     Intensity=Intensity(minindex:maxindex);
     T1vector=T1vector(minindex:maxindex);
     IntensityBeforeComb=squeeze(Signal(minindex:maxindex,1,:));
+    Intensity([1 end])=[0.5 -0.5]; % pads the look up table to avoid points that fall out ot the lookuptable
 else
     Intensity=squeeze(real(Signal(:,:,1).*conj(Signal(:,:,2)))./(abs(Signal(:,:,1)).^2+abs(Signal(:,:,2)).^2));
     T1vector=squeeze(T1vector);
