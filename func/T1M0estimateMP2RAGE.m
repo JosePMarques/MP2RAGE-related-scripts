@@ -31,7 +31,7 @@ function [T1map, M0map, R1map]=T1estimateMP2RAGE(MP2RAGEnii,MP2RAGEINV2nii,MP2RA
 %
 
 
-if nargin==3
+if nargin==4
     invEFF=varargin{1};
 else
     invEFF=0.96;

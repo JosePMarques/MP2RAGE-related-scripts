@@ -47,10 +47,15 @@ for T1=T1vector
                     %                 T1=1;%testline
                     inversiontimes2=[inversiontimesa inversiontimesb];
                     if and(and((diff(inversiontimes2))>=nZslices*FLASH_tr,inversiontimesa>=nZ_bef*FLASH_tr),inversiontimesb<=(MPRAGEtr-nZ_aft*FLASH_tr));
-                        if nargin >= 7
+                        if nargin == 7
                             Signal(j,m,1:2)=1*MPRAGEfunc(nimages,MPRAGEtr,inversiontimes2,nZslices2,FLASH_tr,B1*[flipanglea flipangleb],sequence,T1);
                         else
-                            Signal(j,m,1:2)=1*MPRAGEfunc(nimages,MPRAGEtr,inversiontimes2,nZslices2,FLASH_tr,B1*[flipanglea flipangleb],sequence,T1,varargin{1});
+                            if ~isempty(varargin{1})
+                                Signal(j,m,1:2)=1*MPRAGEfunc(nimages,MPRAGEtr,inversiontimes2,nZslices2,FLASH_tr,B1*[flipanglea flipangleb],sequence,T1,varargin{1});
+                            else
+                                Signal(j,m,1:2)=1*MPRAGEfunc(nimages,MPRAGEtr,inversiontimes2,nZslices2,FLASH_tr,B1*[flipanglea flipangleb],sequence,T1);
+                                
+                            end;
                         end;
                     else
                         Signal(j,m,1:2)=0;
