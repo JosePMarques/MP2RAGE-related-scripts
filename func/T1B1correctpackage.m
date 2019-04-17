@@ -102,9 +102,9 @@ T1_vector=0.5:0.05:5.2;
 
 
 
-[MP2RAGE.Intensity MP2RAGE.T1vector ]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal',invEFF)
+[MP2RAGE.Intensity MP2RAGE.T1vector ]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal',invEFF);
 
-[Sa2RAGE.B1vector Sa2RAGE.Intensity]=B1mappingSa2RAGElookuptable(2,Sa2RAGE.TR,Sa2RAGE.TIs,Sa2RAGE.FlipDegrees,Sa2RAGE.NZslices,Sa2RAGE.TRFLASH,[],Sa2RAGE.averageT1)
+[Sa2RAGE.B1vector Sa2RAGE.Intensity]=B1mappingSa2RAGElookuptable(2,Sa2RAGE.TR,Sa2RAGE.TIs,Sa2RAGE.FlipDegrees,Sa2RAGE.NZslices,Sa2RAGE.TRFLASH,[],Sa2RAGE.averageT1);
 
 
 if isempty(MP2RAGEimg)
@@ -163,7 +163,7 @@ for b1val=B1_vector
         T1matrix(k,:)=interp1(MP2RAGEmatrix(k,:),T1_vector,MP2RAGE_vector,'pchirp');
     catch
         temp=MP2RAGEmatrix(k,:);
-        temp(isnan(temp))=linspace(-0.5,-1,length(find(isnan(temp)==1)));
+        temp(isnan(temp))=linspace(- 0.5 - eps,-1,length(find(isnan(temp)==1)));
         temp=interp1(temp,T1_vector,MP2RAGE_vector);
         %         temp(isnan(temp))=linspace(max(T1_vector),max(T1_vector)*1.1,length(find(isnan(temp)==1)));
         T1matrix(k,:)=temp;
