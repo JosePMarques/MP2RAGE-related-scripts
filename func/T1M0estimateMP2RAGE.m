@@ -35,9 +35,9 @@ if nargin==4
     invEFF=varargin{1};
 else
     invEFF=0.96;
-end;
+end
 
-[Intensity T1vector IntensityUncomb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal',invEFF);
+[Intensity,T1vector,IntensityUncomb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal',invEFF);
 
 % in a first instance the T1 map is computed.
 
@@ -47,7 +47,7 @@ if max(abs(MP2RAGEnii.img(:)))>1
     T1=interp1(Intensity,T1vector,-0.5+1/4095*double(MP2RAGEnii.img(:)));
 else
     T1=interp1(Intensity,T1vector,MP2RAGEnii.img(:));
-end;
+end
 T1(isnan(T1))=0;
 
 % copies the header from the MP2RAGEnii
