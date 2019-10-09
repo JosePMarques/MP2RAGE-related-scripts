@@ -1,4 +1,4 @@
-function [B1vector Intensity Signal]=B1mappingSa2RAGElookuptable(nimage,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
+function [B1vector,Intensity,Signal]=B1mappingSa2RAGElookuptable(nimage,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
 % usage
 % [B1map]=B1mappingSa2RAGE(Rationii,nimage,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
 % varargin{1} is a phase image
@@ -9,7 +9,7 @@ if size(varargin,2)<2
     T1average=1.5;
 else
     T1average=varargin{2};
-end;
+end
 T1average;
 B1vector=0.005:0.005:2.5;
 
@@ -24,7 +24,7 @@ elseif     length(nZslices)==1
     nZ_bef=nZslices/2;
     nZ_aft=nZslices/2;
     nZslices2=(nZslices);
-end;
+end
 
 
 
@@ -35,8 +35,8 @@ for B1=B1vector
         Signal(m,1:2)=1*MPRAGEfunc(nimage,MPRAGE_tr,invtimesAB,nZslices2,FLASH_tr,B1*[flipangleABdegree],'normal',T1average,-cos((B1*pi/2)));
     else
         Signal(m,1:2)=0;
-    end;
-end;
+    end
+end
 
 Intensity=squeeze(real(Signal(:,1))./(real(Signal(:,2))));
 B1vector=squeeze(B1vector);

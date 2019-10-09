@@ -1,4 +1,4 @@
-function [ T1temp MP2RAGEcorrected] = T1B1correctpackageTFL( B1img,MP2RAGEimg,T1,MP2RAGE,brain,varargin)
+function [ T1temp,MP2RAGEcorrected] = T1B1correctpackageTFL( B1img,MP2RAGEimg,T1,MP2RAGE,brain,varargin)
 % usage
 %
 % [  T1corr MP2RAGEcorr] = T1B1correctpackage(B1,MP2RAGEimg,T1,MP2RAGE,brain,varargin)
@@ -43,19 +43,19 @@ function [ T1temp MP2RAGEcorrected] = T1B1correctpackageTFL( B1img,MP2RAGEimg,T1
 %
 % please cite:
 % Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
-% Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
+% Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271â€“1281. doi:10.1016/j.neuroimage.2009.10.002
 %
 
 
-if nargin==8
+if nargin==6
     
     invEFF=varargin{1}
     
 else
     
-    invEFF=0.99;
+    invEFF=0.96;
     
-end;
+end
 
 if isempty(brain)
     
@@ -71,9 +71,9 @@ if isempty(brain)
         
         brain.img=ones(size(brain.img));
         
-    end;
+    end
     
-end;
+end
 
 %% sanity check to see how B1 sensitive your sequence was
 
@@ -85,7 +85,7 @@ hold off
 
 for B1val=0.6:0.2:1.4
     
-    [MP2RAGEamp T1vector IntensityBeforeComb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,B1val*MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal');
+    [MP2RAGEamp,T1vector,IntensityBeforeComb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,B1val*MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal');
     
     plot(MP2RAGEamp,T1vector,'color',[0.5 0.5 0.5]*B1val,'Linewidth',2)
     
@@ -125,9 +125,9 @@ else
         
         T1CSF=3.5;
         
-    end;
+    end
     
-end;
+end
 
 plot([-0.5 0.5],[T1CSF T1CSF;T1GM T1GM;T1WM T1WM]','Linewidth',2)
 
@@ -161,7 +161,7 @@ else
     
     MP2RAGEimg.img=double(MP2RAGEimg.img)/4095-0.5;
     
-end;
+end
 
 
 %% now the fun starts
@@ -178,7 +178,7 @@ for b1val=B1_vector
     
     MP2RAGEmatrix(k,:)=interp1(T1vector,Intensity,T1_vector);
     
-end;
+end
 
 k=0;
 
@@ -212,9 +212,9 @@ for b1val=B1_vector
         
         
         
-    end;
+    end
     
-end;
+end
 
 %% correcting the estimates of T1 and B1 iteratively
 
@@ -295,7 +295,7 @@ if showimages==1;
     
     
     
-end;
+end
 
 end
 

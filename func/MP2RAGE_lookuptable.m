@@ -1,5 +1,5 @@
 
-function [Intensity T1vector IntensityBeforeComb]=MP2RAGE_lookuptable(nimages,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,sequence,varargin)
+function [Intensity,T1vector,IntensityBeforeComb]=MP2RAGE_lookuptable(nimages,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,sequence,varargin)
 % first extra parameter is the inversion efficiency
 % second extra parameter is the alldata
 %   if ==1 all data is shown
@@ -31,7 +31,7 @@ elseif     length(nZslices)==1
     nZ_bef=nZslices/2;
     nZ_aft=nZslices/2;
     nZslices2=(nZslices);
-end;
+end
 
 
 
@@ -55,16 +55,16 @@ for T1=T1vector
                             else
                                 Signal(j,m,1:2)=1*MPRAGEfunc(nimages,MPRAGEtr,inversiontimes2,nZslices2,FLASH_tr,B1*[flipanglea flipangleb],sequence,T1);
                                 
-                            end;
-                        end;
+                            end
+                        end
                     else
                         Signal(j,m,1:2)=0;
-                    end;
-                end;
-            end;
-        end;
-    end;
-end;
+                    end
+                end
+            end
+        end
+    end
+end
 Intensity=squeeze(real(Signal(:,:,1).*conj(Signal(:,:,2)))./(abs(Signal(:,:,1)).^2+abs(Signal(:,:,2)).^2));
 T1vector=squeeze(T1vector);
 if alldata==0
@@ -78,4 +78,4 @@ else
     Intensity=squeeze(real(Signal(:,:,1).*conj(Signal(:,:,2)))./(abs(Signal(:,:,1)).^2+abs(Signal(:,:,2)).^2));
     T1vector=squeeze(T1vector);
     IntensityBeforeComb=squeeze(Signal(:,1,:));
-end;
+end
