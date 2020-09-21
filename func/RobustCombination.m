@@ -1,26 +1,39 @@
+function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, regularization, visualize)
 
-function [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(MP2RAGE,regularization)
+% This script allows the creation of MP2RAGE T1w images without the strong
+% background noise in air regions.
+%
+% MP2RAGE is a structure that should have the following fields:
+% MP2RAGE.filenameUNI
+% MP2RAGE.filenameINV1
+% MP2RAGE.filenameINV2
+% MP2RAGE.filenameOUT - it does not have to exist, only if you want to save the output file.
+% If you have already done your 'homework' with your datasets using the same protocol
+% you can then just use this function shows one possible implementation of the methods suggested
+% in:
+%
+% O'Brien, et al, 2014.
+% Robust T1-Weighted Structural Brain Imaging and Morphometry at 7T Using MP2RAGE
+% PLOS ONE 9, e99676. doi:10.1371/journal.pone.0099676
+% http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099676
+%
+% Although in the original paper the method only worked on raw multichannel
+% data, here that constraint has been overcome and the correction can be
+% implemented if both SOS images of the two inversion times exist and a
+% MP2RAGE T1w image that has been calculated directly from the multichannel
+% data as initially proposed in Marques et al, Neuroimage, 2009
 
-% MP2RAGE is a structure that should have the following fields
-% MP2RAGE.filenameUNI;
-% MP2RAGE.filenameINV1;
-% MP2RAGE.filenameINV2;
-% MP2RAGE.filenameOUT; - it does not have to exist, only if you want to
-% save the output file
-% if you have already done your 'homework' with your datasets using the same protocol
-% you can then just use
-% this function shows one possible implementation of the methods suggested
-% in http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099676
 
-
-
-if isempty(regularization)
+if nargin<2 || isempty(regularization)
     multiplyingFactor=1;
     FinalChoice='n';
 else
     multiplyingFactor=regularization;
     FinalChoice='n';
-end;
+end
+if nargin<3
+    visualize=true;
+end
 
 %% defines relevant functions
 
@@ -37,43 +50,36 @@ INV1img=load_untouch_nii(MP2RAGE.filenameINV1);
 INV2img=load_untouch_nii(MP2RAGE.filenameINV2);
 
 if and(min(MP2RAGEimg.img(:))>=0,max(MP2RAGEimg.img(:))>=0.51)
-    % converts MP2RAGE to -0.5 to 0.5 scale - assumes that it is getting only
-    % positive values
+    % converts MP2RAGE to -0.5 to 0.5 scale - assumes that it is getting only positive values
     MP2RAGEimg.img=(double(MP2RAGEimg.img)- max(double(MP2RAGEimg.img(:)))/2)./max(double(MP2RAGEimg.img(:)));
     integerformat=1;
-    
 else
     integerformat=0;
 end
 
 
-%% computes correct INV1 dataset  
+%% computes correct INV1 dataset
 INV2img.img=double(INV2img.img);
 
 %gives the correct polarity to INV1;
 INV1img.img=sign(MP2RAGEimg.img).*double(INV1img.img);
 
-%
 % because the MP2RAGE INV1 and INV2 is a summ of squares data, while the
 % MP2RAGEimg is a phase sensitive coil combination.. some more maths has to
 % be performed to get a better INV1 estimate which here is done by assuming
 % both INV2 is closer to a real phase sensitive combination
 
-
 INV1pos=rootsquares_pos(-MP2RAGEimg.img,INV2img.img,-INV2img.img.^2.*MP2RAGEimg.img);
 INV1neg=rootsquares_neg(-MP2RAGEimg.img,INV2img.img,-INV2img.img.^2.*MP2RAGEimg.img);
-
 
 INV1final=INV1img.img;
 INV1final(abs(INV1img.img-INV1pos)> abs(INV1img.img-INV1neg))=INV1neg(abs(INV1img.img-INV1pos)>abs(INV1img.img-INV1neg));
 INV1final(abs(INV1img.img-INV1pos)<=abs(INV1img.img-INV1neg))=INV1pos(abs(INV1img.img-INV1pos)<=abs(INV1img.img-INV1neg));
 
 
-
 %% visualizing the data
 
 pos=round(3/5*size(INV1final));
-visualize=1;
 if visualize
     figureJ(200)
     subplot(411)
@@ -91,7 +97,6 @@ if visualize
     subplot(414)
     Orthoview(INV1final,pos,[-200 200])
     title('INV1 final')
-    
 end
 
 clear INV1img
@@ -102,48 +107,54 @@ clear INV1neg
 
 % usually the multiplicative factor shouldn't be greater then 10, but that
 % is not the ase when the image is bias field corrected, in which case the
-% noise estimated at the edge of the imagemight not be such a good measure
+% noise estimated at the edge of the image might not be such a good measure
 
 while strcmp(FinalChoice,'n')
     
     noiselevel=multiplyingFactor*mean(mean(mean(INV2img.img(1:end,end-10:end,end-10:end))));
     
-    
     % MP2RAGEimgRobustScanner=MP2RAGErobustfunc(INV1img.img,INV2img.img,noiselevel.^2);
     MP2RAGEimgRobustPhaseSensitive=MP2RAGErobustfunc(INV1final,INV2img.img,noiselevel.^2);
     
-     % Robust Image view
-    range =[-0.5 0.40]
-    
-    subplot(211)
-    Orthoview(MP2RAGEimg.img,pos,range),title('MP2RAGE UNI_Image')
-    
-    % subplot(312)
-    % Orthoview(MP2RAGEimgRobustScanner,pos,range),title('MP2RAGE Robust Scanner')
-    
-    subplot(212)
-    Orthoview(MP2RAGEimgRobustPhaseSensitive,pos,range),title('MP2RAGE Robust')
-    ylabel(['noise level = ',num2str(multiplyingFactor)])
-    
-    if isempty(regularization)
-    
-    FinalChoice=input('Is it a satisfactory noise level ? (y/n) [n]','s')
-    if isempty(FinalChoice)
-        FinalChoice = 'n';
-    end;
-    
-    if strcmp(FinalChoice,'y')|strcmp(FinalChoice,'Y')
-        display(['regularization noise level =',num2str(multiplyingFactor)])
-    else
-        multiplyingFactor=input(['regularization noise level  ? ( current = , ' , num2str(multiplyingFactor),')'])
+    if visualize
         
-    end;
+        % Robust Image view
+        range =[-0.5 0.40];
+        
+        subplot(211)
+        Orthoview(MP2RAGEimg.img,pos,range),title('MP2RAGE UNI_Image')
+        
+        % subplot(312)
+        % Orthoview(MP2RAGEimgRobustScanner,pos,range),title('MP2RAGE Robust Scanner')
+        
+        subplot(212)
+        Orthoview(MP2RAGEimgRobustPhaseSensitive,pos,range),title('MP2RAGE Robust')
+        ylabel(['noise level = ',num2str(multiplyingFactor)])
+        
+        if isempty(regularization)
+            
+            FinalChoice=input('Is it a satisfactory noise level ? (y/n) [n]','s');
+            if isempty(FinalChoice)
+                FinalChoice = 'n';
+            end
+            
+            if strcmp(FinalChoice,'y') || strcmp(FinalChoice,'Y')
+                display(['regularization noise level =',num2str(multiplyingFactor)])
+            else
+                multiplyingFactor=input(['regularization noise level  ? ( current = , ' num2str(multiplyingFactor) ')']);
+            end
+        else
+            FinalChoice = 'y';
+            display(['regularization noise level =',num2str(multiplyingFactor)])
+        end
+        
     else
+        
         FinalChoice = 'y';
-        display(['regularization noise level =',num2str(multiplyingFactor)])
+        
     end
     
-end;
+end
 
 % saving data if that is the case
 if isfield(MP2RAGE,'filenameOUT')
@@ -154,8 +165,6 @@ if isfield(MP2RAGE,'filenameOUT')
         else
             MP2RAGEimg.img=round(4095*(MP2RAGEimgRobustPhaseSensitive+0.5));
             save_untouch_nii(MP2RAGEimg,MP2RAGE.filenameOUT);
-            
-        end;
-        
+        end 
     end
-end;
+end
