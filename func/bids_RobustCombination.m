@@ -58,6 +58,9 @@ for subject = subjects'
             else
                 MP2RAGE(index).filenameOUT = fullfile(bidsroot, subject.name, session.name, target, T1name);                        % T1w image without background noise;
             end
+            if ~exist(fileparts(MP2RAGE(index).filenameOUT), 'dir')
+                mkdir(fileparts(MP2RAGE(index).filenameOUT))
+            end
             fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)
         end
     end
