@@ -100,10 +100,6 @@ if visualize
     title('INV1 final')
 end
 
-clear INV1img
-clear INV1pos
-clear INV1neg
-
 
 %% lambda calculation
 

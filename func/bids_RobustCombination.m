@@ -6,7 +6,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, source, ta
 %   bidsroot        - The root of the BIDS directory with all the subject directories
 %   regularization  - A noise level regularization term, see also: DemoRemoveBackgroundNoise.m
 %
-% A fully BIDS-aware (a 'bidsapp') wrapper around 'RobustCombination' that reads and writes BIDS
+% A BIDS-aware (a 'bidsapp') wrapper around 'RobustCombination' that reads and writes BIDS
 % compliant data
 %
 % Marcel Zwiers, 18/9/2020
@@ -48,10 +48,10 @@ for subject = subjects'
                 continue
             end
             index                       = numel(MP2RAGE) + 1;
-            MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);       % standard MP2RAGE T1w image;
-            MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);     % Inversion Time 1 MP2RAGE T1w image;
-            MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);     % Inversion Time 2 MP2RAGE T1w image;
-            suffix                      = split(expr.uni, '_');                 % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+            MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % standard MP2RAGE T1w image;
+            MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image;
+            MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);                             % Inversion Time 2 MP2RAGE T1w image;
+            suffix                      = split(expr.uni, '_');                                         % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
             T1name                      = strrep(uni.name, ['_' strtok(suffix{end}, '.')], '_T1w');     % Guess the suffix from the search expression
             if strcmp(target, 'derivatives')
                 MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, T1name);      % T1w image without background noise;
