@@ -139,7 +139,7 @@ while ~strcmpi(FinalChoice, 'y')
         if isempty(regularization)
             FinalChoice = input('Is it a satisfactory noise level?? (y/n) [n]: ', 's');
             if strcmpi(FinalChoice,'y')
-                display(['Final regularization noise level = ', num2str(multiplyingFactor)])
+                fprintf('Final regularization noise level = %g\n\n', multiplyingFactor)
             else
                 multiplyingFactor = input(['New regularization noise level (current = ' num2str(multiplyingFactor) '): ']);
             end
