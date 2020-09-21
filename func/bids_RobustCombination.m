@@ -58,9 +58,6 @@ for subject = subjects'
             else
                 MP2RAGE(index).filenameOUT = fullfile(bidsroot, subject.name, session.name, target, T1name);                        % T1w image without background noise;
             end
-            if ~exist(fileparts(MP2RAGE(index).filenameOUT), 'dir')
-                mkdir(fileparts(MP2RAGE(index).filenameOUT))
-            end
             fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)
         end
     end
@@ -68,10 +65,13 @@ end
 
 % Get a good regularization value from the first MP2RAGE image
 if isempty(regularization)
-    [~, regularization] = RobustCombination(MP2RAGE(1), regularization, true);
+    [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), regularization, true);
 end
 
 % Process all the MP2RAGE images
 for n = 1:numel(MP2RAGE)
+    if ~exist(fileparts(MP2RAGE(n).filenameOUT), 'dir')
+        mkdir(fileparts(MP2RAGE(n).filenameOUT))
+    end
     RobustCombination(MP2RAGE(n), regularization, false);
 end

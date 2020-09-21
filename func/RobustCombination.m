@@ -25,14 +25,13 @@ function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination
 
 if nargin<2 || isempty(regularization)
     multiplyingFactor = 1;
-    FinalChoice = 'n';
 else
     multiplyingFactor = regularization;
-    FinalChoice = 'n';
 end
 if nargin<3
     visualize = true;
 end
+FinalChoice = 'n';
 
 
 %% defines relevant functions
@@ -112,7 +111,7 @@ clear INV1neg
 % is not the ase when the image is bias field corrected, in which case the
 % noise estimated at the edge of the image might not be such a good measure
 
-while strcmp(FinalChoice, 'n')
+while ~strcmpi(FinalChoice, 'y')
     
     noiselevel = multiplyingFactor*mean(mean(mean(INV2img.img(1:end, end-10:end, end-10:end))));
     
@@ -138,12 +137,7 @@ while strcmp(FinalChoice, 'n')
         ylabel(['Noise level = ' num2str(multiplyingFactor)])
         
         if isempty(regularization)
-            
-            FinalChoice = input('Is it a satisfactory noise level?? (y/n) [n]: ','s');
-            if isempty(FinalChoice)
-                FinalChoice = 'n';
-            end
-            
+            FinalChoice = input('Is it a satisfactory noise level?? (y/n) [n]: ', 's');
             if strcmpi(FinalChoice,'y')
                 display(['Final regularization noise level = ', num2str(multiplyingFactor)])
             else
@@ -151,7 +145,6 @@ while strcmp(FinalChoice, 'n')
             end
         else
             FinalChoice = 'y';
-            display(['Final regularization noise level = ', num2str(multiplyingFactor)])
         end
         
     else
@@ -170,7 +163,7 @@ if isfield(MP2RAGE, 'filenameOUT')
         disp(['Saving: ' MP2RAGE.filenameOUT])
         if integerformat==0
             MP2RAGEimg.img = MP2RAGEimgRobustPhaseSensitive;
-            save_untouch_nii(MP2RAGEimg,MP2RAGE.filenameOUT);
+            save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
         else
             MP2RAGEimg.img = round(4095*(MP2RAGEimgRobustPhaseSensitive + 0.5));
             save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
