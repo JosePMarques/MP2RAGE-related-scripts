@@ -42,10 +42,8 @@ end
 if nargin<4 || isempty(target)
     target = 'anat';
 end
-if ~contains(expression.uni, '_')
-    warning('The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
-    return
-end
+assert(contains(expression.uni, '_'), ...
+    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
 
 % Get all the MP2RAGE images
 MP2RAGE  = [];
