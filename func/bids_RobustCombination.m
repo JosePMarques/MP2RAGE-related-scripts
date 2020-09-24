@@ -122,7 +122,7 @@ for n = 1:numel(MP2RAGE)
             end
             T1scan = [target '/' outname outext];
             scanstable(T1scan, :) = UNIdata;
-            fprintf('Updating %s:\n-->\t%s%s\n\n', scansfile, T1scan, sprintf('\t%s',UNIdata{:}))
+            fprintf('Updating %s:\n--> %s%s\n\n', scansfile, T1scan, sprintf('\t%s',UNIdata{:}))
             writetable(scanstable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
         end
     
