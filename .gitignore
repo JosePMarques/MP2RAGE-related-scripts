@@ -21,6 +21,7 @@ $RECYCLE.BIN/
 # Matlab Files
 # =========================
 resources/
+*.asv
 
 # =========================
 # Operating System Files
