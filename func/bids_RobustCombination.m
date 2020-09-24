@@ -94,7 +94,7 @@ for n = 1:numel(MP2RAGE)
     if ~exist(outpath, 'dir')
         mkdir(outpath)
     end
-    RobustCombination(MP2RAGE(n), regularization, false);
+    RobustCombination(MP2RAGE(n), regularization, true);
 
     if ~strcmp(target, 'derivatives')
     
