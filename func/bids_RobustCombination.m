@@ -1,10 +1,12 @@
-function bids_RobustCombination(bidsroot, regularization, expression, source, target)
+function bids_RobustCombination(bidsroot, regularization, expression, target)
 
-% FUNCTION bids_RobustCombination(bidsroot, regularization)
+% FUNCTION bids_RobustCombination(bidsroot, regularization, expression, target)
 %
 % INPUT
 %   bidsroot        - The root of the BIDS directory with all the subject directories
 %   regularization  - A noise level regularization term, see also: DemoRemoveBackgroundNoise.m
+%   expression      -
+%   target          -
 %
 % A BIDS-aware (a 'bidsapp') wrapper around 'RobustCombination' that reads and writes BIDS
 % compliant data
@@ -19,9 +21,6 @@ if nargin<3 || isempty(expression)
                         'inv1',['extra_data' filesep '*_inv1.nii*'], ...
                         'inv2',['extra_data' filesep '*_inv2.nii*']);
 end
-if nargin<4 || isempty(source)
-    source = 'extra_data';
-end
 if nargin<4 || isempty(target)
     target = 'anat';
 end
@@ -30,48 +29,80 @@ end
 MP2RAGE  = [];
 subjects = dir(fullfile(bidsroot, 'sub-*'));
 for subject = subjects'
-    sessions = dir(fullfile(bidsroot, subject.name, 'ses-*'));
+    sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
     if isempty(sessions)
-        sessions(1).name = '.';
+        sessions(1).folder = fullfile(subject.folder, subject.name);
+        sessions(1).name   = '.';
     end
     for session = sessions'
-        for expr = expression(:)'
-            fprintf('%s:\n', fullfile(bidsroot, subject.name, session.name))
-            uni  = dir(fullfile(bidsroot, subject.name, session.name, expr.uni));
-            inv1 = dir(fullfile(bidsroot, subject.name, session.name, expr.inv1));
-            inv2 = dir(fullfile(bidsroot, subject.name, session.name, expr.inv2));
-            if isempty(uni) || isempty(inv1) || isempty(inv2)
-                fprintf('Could not find UNI, INV1 & INV2 images with search terms:\n%s\n%s\n%s\n\n', fullfile(subject.name, session.name, expr.uni), fullfile(subject.name, session.name, expr.inv1),  fullfile(subject.name, session.name, expr.inv2))
-                continue
-            elseif numel(uni)>1 || numel(inv1)>1 || numel(inv2)>1
-                warning('Too many UNI, INV1 & INV2 images found in:\n%s\n%s\n', fullfile(subject.name, session.name, expr.uni), sprintf('%s\n', uni.name, inv1.name, inv2.name))
-                continue
-            end
-            index                       = numel(MP2RAGE) + 1;
-            MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % standard MP2RAGE T1w image;
-            MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image;
-            MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);                             % Inversion Time 2 MP2RAGE T1w image;
-            suffix                      = split(expr.uni, '_');                                         % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
-            T1name                      = strrep(uni.name, ['_' strtok(suffix{end}, '.')], '_T1w');     % Guess the suffix from the search expression
-            if strcmp(target, 'derivatives')
-                MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, T1name);      % T1w image without background noise;
-            else
-                MP2RAGE(index).filenameOUT = fullfile(bidsroot, subject.name, session.name, target, T1name);                        % T1w image without background noise;
-            end
-            fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)
+        fprintf('%s:\n', fullfile(session.folder, session.name))
+        uni  = dir(fullfile(session.folder, session.name, expression.uni));
+        inv1 = dir(fullfile(session.folder, session.name, expression.inv1));
+        inv2 = dir(fullfile(session.folder, session.name, expression.inv2));
+        if isempty(uni) || isempty(inv1) || isempty(inv2)
+            fprintf('Could not find UNI, INV1 & INV2 images with search terms:\n%s\n%s\n%s\n\n', fullfile(subject.name, session.name, expression.uni), fullfile(subject.name, session.name, expression.inv1),  fullfile(subject.name, session.name, expression.inv2))
+            continue
+        elseif numel(uni)>1 || numel(inv1)>1 || numel(inv2)>1
+            warning('Too many UNI, INV1 & INV2 images found in:\n%s\n%s\n', fullfile(subject.name, session.name, expression.uni), sprintf('%s\n', uni.name, inv1.name, inv2.name))
+            continue
         end
+        index                       = numel(MP2RAGE) + 1;
+        MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % Standard MP2RAGE T1w image
+        MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image
+        MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);                             % Inversion Time 2 MP2RAGE T1w image
+        suffix                      = split(expression.uni, '_');                                         % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+        T1name                      = strrep(uni.name, ['_' strtok(suffix{end}, '.')], '_T1w');     % Guess the suffix from the search expression
+        if strcmp(target, 'derivatives')
+            MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, T1name);      % T1w image without background noise;
+        else
+            MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                % T1w image without background noise;
+        end
+        fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)
     end
 end
 
 % Get a good regularization value from the first MP2RAGE image
 if isempty(regularization)
-    [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), regularization, true);
+    [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), [], true);
 end
 
 % Process all the MP2RAGE images
 for n = 1:numel(MP2RAGE)
-    if ~exist(fileparts(MP2RAGE(n).filenameOUT), 'dir')
-        mkdir(fileparts(MP2RAGE(n).filenameOUT))
+    
+    % Save a combined image
+    [outpath, outname, outext] = fileparts(MP2RAGE(n).filenameOUT);
+    if ~exist(outpath, 'dir')
+        mkdir(outpath)
     end
     RobustCombination(MP2RAGE(n), regularization, false);
+
+    if ~strcmp(target, 'derivatives')
+        
+        % Adapt the scans.tsv file
+        parts = split(outname,'_');
+        if contains(outname, '_ses-')
+            parts = parts(1:2);
+        else
+            parts = parts(1);
+        end
+        scansfile = fullfile(bidsroot, parts{:}, sprintf('%sscans.tsv', sprintf('%s_', parts{:})));
+        if exist(scansfile, 'file')
+            scanstable = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
+            [UNIpath, UNIname, UNIext] = fileparts(MP2RAGE(n).filenameUNI);
+            UNIscan = [fileparts(UNIpath) '/' UNIname UNIext];
+            if any(contains(scanstable.Properties.RowNames, UNIscan))
+                UNIdata = scanstable(UNIscan,:).Variables;
+            else
+                UNIdata = repmat({'n/a'}, 1, size(scanstable.Variables, 2));
+            end
+            T1scan = [target '/' outname outext];
+            scanstable(T1scan, :) = UNIdata;
+            fprintf('Updating %s:\n%s%s\n', scansfile, T1scan, sprintf('\t%s',UNIdata{:}))
+            writetable(scanstable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
+        end
+    
+        % Adapt the IntendedFor fieldmap values (TODO)
+    
+    end
+    
 end
