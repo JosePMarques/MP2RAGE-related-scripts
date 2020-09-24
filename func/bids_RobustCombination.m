@@ -1,17 +1,35 @@
 function bids_RobustCombination(bidsroot, regularization, expression, target)
 
-% FUNCTION bids_RobustCombination(bidsroot, regularization, expression, target)
+% FUNCTION bids_RobustCombination(bidsroot, [regularization], [expression], [target])
+%
+% A BIDS-aware wrapper ('bidsapp') around 'RobustCombination' that reads and writes BIDS
+% compliant data
 %
 % INPUT
 %   bidsroot        - The root of the BIDS directory with all the subject directories
-%   regularization  - A noise level regularization term, see also: DemoRemoveBackgroundNoise.m
-%   expression      -
-%   target          -
+%   regularization  - A noise level regularization term, default = []
+%   expression      - A structure with 'uni', 'inv1' and 'inv2' fields for selecting the
+%                     corresponding MP2RAGE images. The suffix (e.g. '_uni') needs to be included.
+%                     Default = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
+%                                      'inv1',['extra_data' filesep '*_inv1.nii*'], ...
+%                                      'inv2',['extra_data' filesep '*_inv2.nii*'])
+%   target          - The target sub-directory in which the combined image is saved (default = 'anat')
+%                     If 'derivatives' then the output is saved in the bids 'derivatives' root-folder
 %
-% A BIDS-aware (a 'bidsapp') wrapper around 'RobustCombination' that reads and writes BIDS
-% compliant data
+% EXAMPLES
+%   >> bids_RobustCombination('/project/3015046.06/bids')
+%   >> bids_RobustCombination('/project/3015046.06/bids', 15)
+%   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
+%         struct('uni','anat/*_uni.nii*', 'inv1','anat/*_inv1.nii*', 'inv2','anat/*_inv2.nii*'))
+%   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
+%         struct('uni','anat/*UNIimages*_MP2RAGE.nii.gz', 'inv1','anat/*INV1*_MP2RAGE.nii.gz', 'inv2','anat/*INV2*_MP2RAGE.nii.gz'))
+%   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
+%         struct('uni','extra_data/*_UNI.nii*', 'inv1','extra_data/*_INV1.nii*', 'inv2','extra_data/*_INV2.nii*'))
+%   >> bids_RobustCombination('/project/3015046.06/bids', [], [], 'derivatives')
 %
-% Marcel Zwiers, 18/9/2020
+% See also: DemoRemoveBackgroundNoise, RobustCombination
+%
+% Marcel Zwiers, 24/9/2020
 
 if nargin<2
     regularization = [];
@@ -23,6 +41,10 @@ if nargin<3 || isempty(expression)
 end
 if nargin<4 || isempty(target)
     target = 'anat';
+end
+if ~contains(expression.uni, '_')
+    warning('The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
+    return
 end
 
 % Get all the MP2RAGE images
@@ -50,8 +72,8 @@ for subject = subjects'
         MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % Standard MP2RAGE T1w image
         MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image
         MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);                             % Inversion Time 2 MP2RAGE T1w image
-        suffix                      = split(expression.uni, '_');                                         % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
-        T1name                      = strrep(uni.name, ['_' strtok(suffix{end}, '.')], '_T1w');     % Guess the suffix from the search expression
+        suffix                      = split(expression.uni, '_');                                   % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+        T1name                      = strrep(uni.name, ['_' strtok(suffix{end},'.')], '_T1w');      % Guess the suffix from the search expression
         if strcmp(target, 'derivatives')
             MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, T1name);      % T1w image without background noise;
         else
@@ -87,9 +109,10 @@ for n = 1:numel(MP2RAGE)
         end
         scansfile = fullfile(bidsroot, parts{:}, sprintf('%sscans.tsv', sprintf('%s_', parts{:})));
         if exist(scansfile, 'file')
-            scanstable = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
+            scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
             [UNIpath, UNIname, UNIext] = fileparts(MP2RAGE(n).filenameUNI);
-            UNIscan = [fileparts(UNIpath) '/' UNIname UNIext];
+            [~, source]                = fileparts(UNIpath);            
+            UNIscan                    = [source '/' UNIname UNIext];
             if any(contains(scanstable.Properties.RowNames, UNIscan))
                 UNIdata = scanstable(UNIscan,:).Variables;
             else
