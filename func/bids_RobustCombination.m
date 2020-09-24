@@ -4,7 +4,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 %
 % A BIDS-aware wrapper ('bidsapp') around 'RobustCombination' that reads and writes BIDS
 % compliant data. The MP2RAGE images are assumed to be stored with a suffix in the filename
-% (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz")
+% (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"). NB: Fieldmaps for MP2RAGE are not (yet) supported
 %
 % INPUT
 %   bidsroot        - The root of the BIDS directory with all the subject directories
