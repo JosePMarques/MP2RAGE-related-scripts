@@ -1,49 +1,46 @@
-function [ B1temp T1temp MP2RAGEcorrected] = T1B1correctpackage( Sa2RAGEimg,B1img,Sa2RAGE,MP2RAGEimg,T1,MP2RAGE,brain,varargin)
-% usage 
+function [B1temp, T1temp, MP2RAGEcorrected] = T1B1correctpackage(Sa2RAGEimg, B1img, Sa2RAGE, MP2RAGEimg, T1, MP2RAGE, brain, varargin)
+% Usage:
 %
-% [ B1corr T1corr MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,B1,Sa2RAGE,MP2RAGEimg,T1,MP2RAGE,brain,varargin)
+% [B1corr, T1corr, MP2RAGEcorr] = T1B1correctpackage(Sa2RAGEimg, B1, Sa2RAGE, MP2RAGEimg, T1, MP2RAGE, brain, varargin)
 %
-% Sa2RAGEimg (and B1) and MP2RAGEimg (and T1) are the nii structures resulting from loading the MP2RAGE and Sa2RAGE
-% with load_nii or load_untouch_nii
-% you only have to load either the Sa2RAGEimg or the B1 (I usually use the B1 map)
-% you only have to load either the MP2RAGEimg or the T1 (I usually use the MP2RAGEimg)
-% the variables that are not loaded can be simply left empty []
-% MP2rage and Sa2RAGE are variables containing all the relevant sequence
-% information as delailed below
-%    Sa2RAGE.TR=2.4;
-%    Sa2RAGE.TRFLASH=3.1e-3;
-%    Sa2RAGE.TIs=[75e-3 1800e-3];
-%    Sa2RAGE.NZslices=[16+4 16+4]; excitations before and after kspace centre
-%    Sa2RAGE.FlipDegrees=[4 11];
-%    Sa2RAGE.averageT1=1.5;
+% Sa2RAGEimg (and B1) and MP2RAGEimg (and T1) are the nii structures resulting from loading the
+% MP2RAGE and Sa2RAGE with load_nii or load_untouch_nii
+% You only have to load either the Sa2RAGEimg or the B1 (I usually use the B1 map)
+% You only have to load either the MP2RAGEimg or the T1 (I usually use the MP2RAGEimg)
+% The variables that are not loaded can be simply left empty []
 %
-%     MP2RAGE.B0=7;           % in Tesla
-%     MP2RAGE.TR=6;           % MP2RAGE TR in seconds 
-%     MP2RAGE.TRFLASH=6.7e-3; % TR of the GRE readout
-%     MP2RAGE.TIs=[800e-3 2700e-3];% inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
-%     MP2RAGE.NZslices=[40 80];% Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
-%     MP2RAGE.FlipDegrees=[4 5];% Flip angle of the two readouts in degrees
+% MP2rage and Sa2RAGE are variables containing all the relevant sequence information as detailed below:
+%    Sa2RAGE.TR          = 2.4;
+%    Sa2RAGE.TRFLASH     = 3.1e-3;
+%    Sa2RAGE.TIs         = [75e-3 1800e-3];
+%    Sa2RAGE.NZslices    = [16+4 16+4];         % Excitations before and after kspace centre
+%    Sa2RAGE.FlipDegrees = [4 11];
+%    Sa2RAGE.averageT1   = 1.5;
 %
-% brain can be an image in the same space as the MP2RAGE and the
+%    MP2RAGE.B0          = 7;                   % In Tesla
+%    MP2RAGE.TR          = 6;                   % MP2RAGE TR in seconds 
+%    MP2RAGE.TRFLASH     = 6.7e-3;              % TR of the GRE readout
+%    MP2RAGE.TIs         = [800e-3 2700e-3];    % Inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
+%    MP2RAGE.NZslices    = [40 80];             % Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
+%    MP2RAGE.FlipDegrees = [4 5];               % Flip angle of the two readouts in degrees
+%
+% Brain can be an image in the same space as the MP2RAGE and the
 % Sa2RAGE that has zeros where there is no need to do any T1/B1 calculation
-% (can be a binary mask or not). if left empty the calculation is done
-% everywhere
+% (can be a binary mask or not). if left empty the calculation is done everywhere
 %
-% additionally the inversion efficiency of the adiabatic inversion can be
+% Additionally the inversion efficiency of the adiabatic inversion can be
 % set as a last optional variable. Ideally it should be 1. 
 % In the first implementation of the MP2RAGE the inversino efficiency was 
 % measured to be ~0.96
 %
-% outputs are:
-%  B1corr - corrected for T1 bias 
-%  T1corr - T1map corrected for B1 bias
+% Outputs are:
+%  B1corr      - corrected for T1 bias 
+%  T1corr      - T1map corrected for B1 bias
 %  MP2RAGEcorr - MP2RAGE image corrected for B1 bias 
 % 
-% 
-% please cite:
-% Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
-% Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
-%
+% Please cite:
+%  Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
+%  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
 
 if nargin==8
     invEFF=varargin{1};
@@ -161,7 +158,7 @@ for b1val = B1_vector
         T1matrix(k,:)=interp1(MP2RAGEmatrix(k,:),T1_vector,MP2RAGE_vector,'pchirp');
     catch
         temp=MP2RAGEmatrix(k,:);
-        temp(isnan(temp))=linspace(- 0.5 - eps,-1,length(find(isnan(temp)==1)));
+        temp(isnan(temp))=linspace(- 0.5 - eps,-1,length(find(isnan(temp))));
         temp=interp1(temp,T1_vector,MP2RAGE_vector);
         % temp(isnan(temp))=linspace(max(T1_vector),max(T1_vector)*1.1,length(find(isnan(temp)==1)));
         T1matrix(k,:)=temp;
@@ -194,13 +191,13 @@ for k = 1:3
     set(gcf,'Color',[1 1 1]);
     subplot(2,2,k)
         imagesc(temp2-temp);colorbar
-        title(['T1 correction Iteration ',[num2str(k)]])
+        title(['T1 correction Iteration ' num2str(k)])
         colormap(gray)
         gcf=figure(2);
         set(gcf,'Color',[1 1 1]);
     subplot(2,2,k)
         imagesc(btemp2-btemp);colorbar
-        title(['B1 correction Iteration ',[num2str(k)]])
+        title(['B1 correction Iteration ' num2str(k)])
         colormap(gray)  
 end
 
@@ -228,7 +225,6 @@ if showimages==1
         xlabel ('Sa2RAGE','FontSize',12,'FontWeight','bold')
         ylabel ('T_1 (s)','FontSize',12,'FontWeight','bold')
         title('B_1 look-up table','FontSize',12,'FontWeight','bold')
-        % get(H)
         H=gca;
         set(H,'FontSize',12,'LineWidth',2)
         axes(H)
