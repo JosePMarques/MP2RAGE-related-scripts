@@ -8,7 +8,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 %
 % INPUT
 %   bidsroot        - The root of the BIDS directory with all the subject directories
-%   regularization  - A noise level regularization term, default = []
+%   regularization  - A noise level regularization term, default = [] (= interactive use)
 %   expression      - A structure with 'uni', 'inv1' and 'inv2' fields for selecting the
 %                     corresponding MP2RAGE images. The suffix (e.g. '_uni') needs to be included.
 %                     Default = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
@@ -50,11 +50,13 @@ assert(contains(expression.uni, '_'), ...
 MP2RAGE  = [];
 subjects = dir(fullfile(bidsroot, 'sub-*'));
 for subject = subjects'
+    
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
     if isempty(sessions)
         sessions(1).folder = fullfile(subject.folder, subject.name);
         sessions(1).name   = '.';
     end
+    
     for session = sessions'
         fprintf('%s:\n', fullfile(session.folder, session.name))
         uni  = dir(fullfile(session.folder, session.name, expression.uni));
@@ -78,8 +80,9 @@ for subject = subjects'
         else
             MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                % T1w image without background noise;
         end
-        fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)
+        fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)        
     end
+    
 end
 
 % Get a good regularization value from the first MP2RAGE image
