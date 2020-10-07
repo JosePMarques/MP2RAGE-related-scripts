@@ -7,8 +7,8 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 % (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"). NB: Fieldmaps for MP2RAGE are not (yet) supported
 %
 % INPUT
-%   bidsroot        - The root of the BIDS directory with all the subject directories
-%   regularization  - A noise level regularization term, default = [] (= interactive use)
+%   bidsroot        - The root directory of the BIDS repository with all the subject sub-directories
+%   regularization  - A noise level regularization term, (default = find level interactively)
 %   expression      - A structure with 'uni', 'inv1' and 'inv2' fields for selecting the
 %                     corresponding MP2RAGE images. The suffix (e.g. '_uni') needs to be included.
 %                     Default = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
@@ -27,9 +27,9 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 %                'inv1','anat/*INV1*_MP2RAGE.nii.gz', ...
 %                'inv2','anat/*INV2*_MP2RAGE.nii.gz'))
 %   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
-%         struct('uni', 'extra_data/*_acq-Prot1*_UNI.nii*', ...
-%                'inv1','extra_data/*_acq-Prot1*_INV1.nii*', ...
-%                'inv2','extra_data/*_acq-Prot1*_INV2.nii*'))
+%         struct('uni', 'extra_data/*_acq-Prot1_*_UNI.nii*', ...
+%                'inv1','extra_data/*_acq-Prot1_*_INV1.nii*', ...
+%                'inv2','extra_data/*_acq-Prot1_*_INV2.nii*'))
 %   >> bids_RobustCombination('/project/3015046.06/bids', [], [], 'derivatives')
 %
 % See also: DemoRemoveBackgroundNoise, RobustCombination
@@ -109,13 +109,13 @@ for n = 1:numel(MP2RAGE)
         % Adapt the IntendedFor fieldmap values (TODO)
         
         % Adapt the scans.tsv file
-        parts = split(outname,'_');
+        subses = split(outname,'_');
         if contains(outname, '_ses-')
-            parts = parts(1:2);
+            subses = subses(1:2);
         else
-            parts = parts(1);
+            subses = subses(1);
         end
-        scansfile = fullfile(bidsroot, parts{:}, sprintf('%sscans.tsv', sprintf('%s_', parts{:})));
+        scansfile = fullfile(bidsroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
         if exist(scansfile, 'file')
             scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
             [UNIpath, UNIname, UNIext] = fileparts(MP2RAGE(n).filenameUNI);
