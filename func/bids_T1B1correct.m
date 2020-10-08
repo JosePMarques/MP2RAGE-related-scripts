@@ -1,64 +1,74 @@
-function bids_T1B1correct(bidsroot, NrShots, EchoSpacing, expression, invEFF, B1Scaling, realign)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1Scaling, Realign)
 
-% FUNCTION bids_T1B1correct(bidsroot, [NrShots], [EchoSpacing], [expression], [invEFF], [B1Scaling], [realign])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [invEFF], [B1Scaling], [Realign])
 %
-% A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' that reads and writes BIDS compliant data.
-% The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"). 
+% A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
+% The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz").
+% NB: Fieldmaps intended for MP2RAGE are not accomodated for.
 %
-% The 'T1B1correctpackageTFL' removes residual B1 bias from T1-maps estimated from the MP2RAGE data as suggested in:
+% 'T1B1correctpackageTFL' removes residual B1 bias from T1-maps estimated from the MP2RAGE data as suggested in:
 %
 %   Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence -
 %   Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
 % 
-% In this script it is assumed that the B1 maps have been coregistered to the space of the MP2RAGE
-% image and that they have the B1 has in the process been interpolated to the same resolution.
-%
 % INPUT
-%   bidsroot        - The root of the BIDS directory with all the subject directories
-%   NrShots         - The number of shots in the inner loop, the json file doesn't usually contain this ("ReconMatrixPE")
-%   EchoSpacing     - The echo spacing in secs that typically is not given in the json file. If it is not
-%                     given we take it to be twice the echo time
-%   expression      - A structure with 'uni', 'inv1', 'inv2' and 'B1map' fields for selecting the
+%   BIDSroot        - The root directory of the BIDS repository with all the subject sub-directories
+%   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
+%                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
+%   EchoSpacing     - The echo spacing in secs that typically is not given in the json file. Default = 2 * TE
+%   Expression      - A structure with 'uni', 'inv1', 'inv2' and 'B1map' fields for selecting the
 %                     corresponding MP2RAGE and B1-map images. A suffix (e.g. '_uni') must be included.
 %                     Default = struct('uni',  ['extra_data' filesep '*_uni.nii*'], ...
 %                                      'inv1', ['extra_data' filesep '*_inv1.nii*'], ...
 %                                      'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
-%                                      'B1map',['extra_data' filesep '*_B1map.nii*'])
-%   invEFF          - Default = 0.96
+%                                      'B1map',['extra_data' filesep '*_rec-mag_*_B1map.nii*'])
+%   invEFF          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
+%                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
 %                     flip-angle is the actual flip-angle. Default = 900
-%   realign         - Realigns and reslices the B1-map to the space of the UNI image if realign==True (default).
+%   Realign         - Realigns and reslices the B1-map to the space of the MP2RAGE image if Realign==True (default).
 %                     Otherwise it is assumed this is already the case and this processing step is skipped.
-%                     NB: The realign option requires SPM12 software package on your Matlab-path
+%                     NB: The Realign option requires SPM12 software package on your Matlab-path
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
+%   >> bids_T1B1correct('/project/3015046.06/bids', [round(224*3/8) round(224*4/8)], 7.5e-3)
+%   >> bids_T1B1correct('/project/3015046.06/bids', round(224*4/8), [], ...
+%         struct('uni',  'anat/*_uni.nii*', ...
+%                'inv1', 'anat/*_inv1.nii*', ...
+%                'inv2', 'anat/*_inv2.nii*', ...
+%                'B1map','extra_data/*_rec-mag_*_b1map.nii*'))
+%   >> bids_T1B1correct('/project/3015046.06/bids', [], [], ...
+%         struct('uni',  'extra_data/*_acq-Prot1_*_UNI.nii*', ...
+%                'inv1', 'extra_data/*_acq-Prot1_*_INV1.nii*', ...
+%                'inv2', 'extra_data/*_acq-Prot1_*_INV2.nii*', ...
+%                'B1map','extra_data/*_rec-magnitude_*_B1.nii*'))
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
-% Marcel Zwiers, 25/9/2020
+% Marcel Zwiers, 8/10/2020
 
 
 %% Parse the input arguments
-if nargin<4 || isempty(expression)
-    expression = struct('uni',  ['extra_data' filesep '*_uni.nii*'], ...
+if nargin<4 || isempty(Expression)
+    Expression = struct('uni',  ['extra_data' filesep '*_uni.nii*'], ...
                         'inv1', ['extra_data' filesep '*_inv1.nii*'], ...
                         'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
-                        'B1map',['extra_data' filesep '*_B1map.nii*']);
+                        'B1map',['extra_data' filesep '*_rec-mag_*_B1map.nii*']);
 end
-assert(contains(expression.uni, '_'), ...
-    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', expression.uni)
 if nargin<5 || isempty(invEFF)
     invEFF = 0.96;
 end
 if nargin<6 || isempty(B1Scaling)
     B1Scaling = 900;
 end
+assert(contains(Expression.uni, '_'), ...
+    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
 
 
 %% Get all the MP2RAGE images
 MP2RAGE  = [];
-subjects = dir(fullfile(bidsroot, 'sub-*'));
+subjects = dir(fullfile(BIDSroot, 'sub-*'));
 for subject = subjects'
     
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
@@ -72,12 +82,12 @@ for subject = subjects'
         n = numel(MP2RAGE) + 1;
         fprintf('%s (%i):\n', fullfile(session.folder, session.name), n)
         
-        uni      = dir(fullfile(session.folder, session.name, expression.uni));
-        inv1     = dir(fullfile(session.folder, session.name, expression.inv1));
-        inv2     = dir(fullfile(session.folder, session.name, expression.inv2));
-        B1map{n} = dir(fullfile(session.folder, session.name, expression.B1map));
+        uni      = dir(fullfile(session.folder, session.name, Expression.uni));
+        inv1     = dir(fullfile(session.folder, session.name, Expression.inv1));
+        inv2     = dir(fullfile(session.folder, session.name, Expression.inv2));
+        B1map{n} = dir(fullfile(session.folder, session.name, Expression.B1map));
         if isempty(uni) || isempty(B1map{n})
-            fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n\n', fullfile(subject.name, session.name, expression.uni),  fullfile(subject.name, session.name, expression.B1map))
+            fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n\n', fullfile(subject.name, session.name, Expression.uni),  fullfile(subject.name, session.name, Expression.B1map))
             continue
         elseif numel(uni) > 1
             warning('Too many UNI-images found in:\n%s\n%s\n', uni.folder, sprintf('%s\n', uni.name))
@@ -92,7 +102,7 @@ for subject = subjects'
         MP2RAGE(n).filenameINV2 = fullfile(inv2.folder, inv2.name);
         MP2RAGE(n)              = PopulateMP2RAGEStructure(MP2RAGE(n), EchoSpacing, NrShots);
         
-        suffix       = split(strtok(expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+        suffix       = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
         T1mapname{n} = fullfile(session.folder, session.name, 'anat', strrep(uni.name, ['_' suffix{end}], '_T1map'));   % Corrected B1-map
         
         fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, B1map{n}.name, T1mapname{n})
@@ -117,7 +127,7 @@ for n = 1:numel(MP2RAGE)
     [~, T1mapfname]       = fileparts(T1mapbase);
     
     % Realign and reslice the B1-map to the UNI image
-    if realign
+    if Realign
         B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
         UNIRef    = spm_vol_gz(MP2RAGE(n).filenameUNI);
         x         = spm_coreg(UNIRef, B1Src);
@@ -148,7 +158,7 @@ for n = 1:numel(MP2RAGE)
     else
         subses = subses(1);
     end
-    scansfile = fullfile(bidsroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
+    scansfile = fullfile(BIDSroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
     if exist(scansfile, 'file')
         scanstable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
         [~, source] = fileparts(UNIpath);
@@ -200,3 +210,19 @@ if nargin<3 || isempty(NrShots)
 else
     MP2RAGEstructure.NZslices = NrShots;
 end
+
+
+function Vol = spm_vol_gz(FileName)
+
+% A wrapper around spm_vol that unzips .nii.gz files in a temp-folder
+
+[~, Ext] = strtok(FileName, '.');
+switch Ext
+    case '.nii.gz'
+        FileName = char(gunzip(FileName, tempdir));
+    case '.nii'
+    otherwise
+        error('Unknown file extenstion %s in %s', Ext, FileName)
+end
+
+Vol = spm_vol(FileName);
