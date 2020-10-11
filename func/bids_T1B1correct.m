@@ -23,6 +23,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %                                      'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
 %                                      'B1map',['extra_data' filesep '*_B1map.nii*'], ...
 %                                      'B1mag',['extra_data' filesep '*_mod-B1map_*magnitude.nii*']);
+%                     The 'B1mag' field is only needed if Realign==True (see below)
 %   invEFF          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
