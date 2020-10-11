@@ -16,12 +16,13 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
 %                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
 %   EchoSpacing     - The echo spacing in secs that typically is not given in the json file. Default = 2 * TE
-%   Expression      - A structure with 'uni', 'inv1', 'inv2' and 'B1map' fields for selecting the
+%   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1mag' fields for selecting the
 %                     corresponding MP2RAGE and B1-map images. A suffix (e.g. '_uni') must be included.
 %                     Default = struct('uni',  ['extra_data' filesep '*_uni.nii*'], ...
 %                                      'inv1', ['extra_data' filesep '*_inv1.nii*'], ...
 %                                      'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
-%                                      'B1map',['extra_data' filesep '*_rec-mag_*_B1map.nii*'])
+%                                      'B1map',['extra_data' filesep '*_B1map.nii*'], ...
+%                                      'B1mag',['extra_data' filesep '*_mod-B1map_*_magnitude.nii*']);
 %   invEFF          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
@@ -37,12 +38,14 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %         struct('uni',  'anat/*_uni.nii*', ...
 %                'inv1', 'anat/*_inv1.nii*', ...
 %                'inv2', 'anat/*_inv2.nii*', ...
-%                'B1map','extra_data/*_rec-mag_*_b1map.nii*'))
+%                'B1map','extra_data/*_b1.nii*', ...
+%                'B1mag','extra_data/*_mod-B1map_*_magnitude.nii*');
 %   >> bids_T1B1correct('/project/3015046.06/bids', [], [], ...
 %         struct('uni',  'extra_data/*_acq-Prot1_*_UNI.nii*', ...
 %                'inv1', 'extra_data/*_acq-Prot1_*_INV1.nii*', ...
 %                'inv2', 'extra_data/*_acq-Prot1_*_INV2.nii*', ...
-%                'B1map','extra_data/*_rec-magnitude_*_B1.nii*'))
+%                'B1map','extra_data/*FLIPANGLEMAP*.nii*', ...
+%                'B1mag','extra_data/*_mod-FLIPANGLEMAP_*_magn.nii*');
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
@@ -54,7 +57,8 @@ if nargin<4 || isempty(Expression)
     Expression = struct('uni',  ['extra_data' filesep '*_uni.nii*'], ...
                         'inv1', ['extra_data' filesep '*_inv1.nii*'], ...
                         'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
-                        'B1map',['extra_data' filesep '*_rec-mag_*_B1map.nii*']);
+                        'B1map',['extra_data' filesep '*_B1map.nii*'], ...
+                        'B1mag',['extra_data' filesep '*_mod-B1map_*_magnitude.nii*']);
 end
 if nargin<5 || isempty(invEFF)
     invEFF = 0.96;
@@ -86,14 +90,18 @@ for subject = subjects'
         inv1     = dir(fullfile(session.folder, session.name, Expression.inv1));
         inv2     = dir(fullfile(session.folder, session.name, Expression.inv2));
         B1map{n} = dir(fullfile(session.folder, session.name, Expression.B1map));
-        if isempty(uni) || isempty(B1map{n})
-            fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n\n', fullfile(subject.name, session.name, Expression.uni),  fullfile(subject.name, session.name, Expression.B1map))
+        B1mag{n} = dir(fullfile(session.folder, session.name, Expression.B1mag));
+        if isempty(uni) || isempty(B1map{n}) || (Realign && isempty(B1mag{n}))
+            fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n%s\n\n', fullfile(subject.name, session.name, Expression.uni), fullfile(subject.name, session.name, Expression.B1map), fullfile(subject.name, session.name, Expression.B1mag))
             continue
         elseif numel(uni) > 1
             warning('Too many UNI-images found in:\n%s\n%s\n', uni.folder, sprintf('%s\n', uni.name))
             continue
         elseif numel(B1map{n}) > 1
             warning('Too many B1map-images found in:\n%s\n%s\n', B1map{n}.folder, sprintf('%s\n', B1map{n}.name))
+            continue
+        elseif Realign && numel(B1mag{n}) > 1
+            warning('Too many B1map magnitude-images found in:\n%s\n%s\n', B1mag{n}.folder, sprintf('%s\n', B1mag{n}.name))
             continue
         end
         
@@ -129,8 +137,9 @@ for n = 1:numel(MP2RAGE)
     % Realign and reslice the B1-map to the UNI image
     if Realign
         B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
+        B1SrcMag  = spm_vol_gz(fullfile(B1mag{n}.folder, B1mag{n}.name));
         UNIRef    = spm_vol_gz(MP2RAGE(n).filenameUNI);
-        x         = spm_coreg(UNIRef, B1Src);
+        x         = spm_coreg(UNIRef, B1SrcMag);
         R         = B1Src.mat \ spm_matrix(x) * UNIRef.mat;     % R = Mapping from voxels in UNIRef to voxels in B1Src
         B1img.img = NaN(Ref.dim);
         for z = 1:Ref.dim(3)
