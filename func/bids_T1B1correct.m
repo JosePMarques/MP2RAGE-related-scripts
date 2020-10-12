@@ -28,9 +28,9 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
 %                     flip-angle is the actual flip-angle. Default = 900
-%   Realign         - Realigns and reslices the B1-map to the space of the MP2RAGE image if Realign==True (default).
-%                     Otherwise it is assumed this is already the case and this processing step is skipped.
-%                     NB: The Realign option requires SPM12 software package on your Matlab-path
+%   Realign         - Uses the magnitude image of the B1-scan to realign and reslice the B1-map to the space of the
+%                     MP2RAGE image if Realign==True (default). Otherwise it is assumed this is already the case
+%                     and this processing step is skipped. NB: Realign requires the SPM12 software on your Matlab-path
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
@@ -71,7 +71,7 @@ assert(contains(Expression.uni, '_'), ...
     'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
 
 
-%% Get all the MP2RAGE images
+%% Get all the MP2RAGE and B1map images
 MP2RAGE  = [];
 subjects = dir(fullfile(BIDSroot, 'sub-*'));
 for subject = subjects'
