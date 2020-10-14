@@ -1,6 +1,6 @@
-function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1Scaling, Realign)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, invEFF, B1Scaling, Realign)
 
-% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [invEFF], [B1Scaling], [Realign])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [invEFF], [B1Scaling], [Realign])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz").
@@ -24,6 +24,8 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %                                      'B1map',['extra_data' filesep '*_B1map.nii*'], ...
 %                                      'B1mag',['extra_data' filesep '*_mod-B1map_*magnitude.nii*']);
 %                     The 'B1mag' field is only needed if Realign==True (see below)
+%   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
+%                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   invEFF          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
@@ -40,13 +42,14 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, invEFF, B1
 %                'inv1', 'anat/*_inv1.nii*', ...
 %                'inv2', 'anat/*_inv2.nii*', ...
 %                'B1map','extra_data/*_b1.nii*', ...
-%                'B1mag','extra_data/*_mod-B1map_*magnitude.nii*');
+%                'B1mag','extra_data/*_mod-B1map_*magnitude.nii*'));
 %   >> bids_T1B1correct('/project/3015046.06/bids', [], [], ...
 %         struct('uni',  'extra_data/*_acq-Prot1_*_UNI.nii.gz', ...
 %                'inv1', 'extra_data/*_acq-Prot1_*_INV1.nii.gz', ...
 %                'inv2', 'extra_data/*_acq-Prot1_*_INV2.nii.gz', ...
 %                'B1map','extra_data/*FLIPANGLEMAP*.nii.gz', ...
-%                'B1mag','extra_data/*FLIPANGLEMAP*_magn.nii.gz');
+%                'B1mag','extra_data/*FLIPANGLEMAP*_magn.nii.gz'), ...
+%         dir('/project/3015046.06/bids/sub-00*'));
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
@@ -61,10 +64,13 @@ if nargin<4 || isempty(Expression)
                         'B1map',['extra_data' filesep '*_B1map.nii*'], ...
                         'B1mag',['extra_data' filesep '*_mod-B1map_*magnitude.nii*']);
 end
-if nargin<5 || isempty(invEFF)
+if nargin<5 || isempty(subjects)
+    subjects = dir(fullfile(BIDSroot, 'sub-*'));
+end
+if nargin<6 || isempty(invEFF)
     invEFF = 0.96;
 end
-if nargin<6 || isempty(B1Scaling)
+if nargin<7 || isempty(B1Scaling)
     B1Scaling = 900;
 end
 assert(contains(Expression.uni, '_'), ...
@@ -72,8 +78,7 @@ assert(contains(Expression.uni, '_'), ...
 
 
 %% Get all the MP2RAGE and B1map images
-MP2RAGE  = [];
-subjects = dir(fullfile(BIDSroot, 'sub-*'));
+MP2RAGE = [];
 for subject = subjects'
     
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
@@ -139,12 +144,12 @@ for n = 1:numel(MP2RAGE)
     if Realign
         B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
         B1SrcMag  = spm_vol_gz(fullfile(B1mag{n}.folder, B1mag{n}.name));
-        UNIRef    = spm_vol_gz(MP2RAGE(n).filenameUNI);
-        x         = spm_coreg(UNIRef, B1SrcMag);
-        R         = B1Src.mat \ spm_matrix(x) * UNIRef.mat;     % R = Mapping from voxels in UNIRef to voxels in B1Src
+        INV2Ref   = spm_vol_gz(MP2RAGE(n).filenameINV2);
+        x         = spm_coreg(INV2Ref, B1SrcMag);               % Coregister B1SrcMag with INV2Ref
+        R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
         B1img.img = NaN(Ref.dim);
-        for z = 1:Ref.dim(3)
-            B1img.img(:,:,z) = spm_slice_vol_gz(B1Src, R * spm_matrix([0 0 z]), UNIRef.dim(1:2), 1);
+        for z = 1:Ref.dim(3)                                    % Reslice the B1Src volume at the coordinates of each transverse slice of INV2Ref
+            B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2Ref.dim(1:2), 1);
         end
     else
         B1img = load_untouch_nii(fullfile(B1map{n}.folder, B1map{n}.name));
@@ -203,10 +208,10 @@ function MP2RAGEstructure = PopulateMP2RAGEStructure(MP2RAGEstructure, EchoSpaci
 jsonINV1 = jsondecode(fileread([strtok(MP2RAGEstructure.filenameINV1,'.') '.json']));
 jsonINV2 = jsondecode(fileread([strtok(MP2RAGEstructure.filenameINV2,'.') '.json']));
 
-MP2RAGEstructure.B0          = jsonINV1.MagneticFieldStrength;                  % in Tesla
-MP2RAGEstructure.TR          = jsonINV1.RepetitionTime;                         % MP2RAGE TR in seconds
+MP2RAGEstructure.B0          =  jsonINV1.MagneticFieldStrength;                 % in Tesla
+MP2RAGEstructure.TR          =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
 MP2RAGEstructure.TIs         = [jsonINV1.InversionTime jsonINV2.InversionTime]; % inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
-MP2RAGEstructure.FlipDegrees = [jsonINV1.FlipAngle jsonINV2.FlipAngle];         % Flip angle of the two readouts in degrees
+MP2RAGEstructure.FlipDegrees = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
 
 if nargin<2 || isempty(EchoSpacing)
     MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;       % TR of the GRE readout
