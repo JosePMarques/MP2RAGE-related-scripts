@@ -1,6 +1,6 @@
-function bids_RobustCombination(bidsroot, regularization, expression, target)
+function bids_RobustCombination(bidsroot, regularization, expression, subjects, target)
 
-% FUNCTION bids_RobustCombination(bidsroot, [regularization], [expression], [target])
+% FUNCTION bids_RobustCombination(bidsroot, [regularization], [expression], [subjects], [target])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'RobustCombination' that reads and writes BIDS compliant
 % data. The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as
@@ -14,6 +14,8 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 %                     Default = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
 %                                      'inv1',['extra_data' filesep '*_inv1.nii*'], ...
 %                                      'inv2',['extra_data' filesep '*_inv2.nii*'])
+%   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
+%                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   target          - The target sub-directory in which the combined image is saved (default = 'anat')
 %                     If 'derivatives' then the output is saved in the bids 'derivatives' root-folder
 %
@@ -30,7 +32,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, target)
 %         struct('uni', 'extra_data/*_acq-Prot1_*_UNI.nii*', ...
 %                'inv1','extra_data/*_acq-Prot1_*_INV1.nii*', ...
 %                'inv2','extra_data/*_acq-Prot1_*_INV2.nii*'))
-%   >> bids_RobustCombination('/project/3015046.06/bids', [], [], 'derivatives')
+%   >> bids_RobustCombination('/project/3015046.06/bids', [], [], dir('/project/3015046.06/bids/sub-00*'), 'derivatives')
 %
 % See also: DemoRemoveBackgroundNoise, RobustCombination
 %
@@ -44,15 +46,17 @@ if nargin<3 || isempty(expression)
                         'inv1',['extra_data' filesep '*_inv1.nii*'], ...
                         'inv2',['extra_data' filesep '*_inv2.nii*']);
 end
-if nargin<4 || isempty(target)
+if nargin<4 || isempty(subjects)
+    subjects = dir(fullfile(bidsroot, 'sub-*'));
+end
+if nargin<5 || isempty(target)
     target = 'anat';
 end
 assert(contains(expression.uni, '_'), ...
     'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
 
 % Get all the MP2RAGE images
-MP2RAGE  = [];
-subjects = dir(fullfile(bidsroot, 'sub-*'));
+MP2RAGE = [];
 for subject = subjects'
     
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
