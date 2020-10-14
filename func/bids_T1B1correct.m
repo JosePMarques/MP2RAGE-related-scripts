@@ -68,7 +68,7 @@ if nargin<6 || isempty(B1Scaling)
     B1Scaling = 900;
 end
 assert(contains(Expression.uni, '_'), ...
-    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
+    'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
 
 
 %% Get all the MP2RAGE and B1map images
