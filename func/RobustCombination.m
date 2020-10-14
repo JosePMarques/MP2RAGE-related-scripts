@@ -23,13 +23,14 @@ function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination
 % MP2RAGE T1w image that has been calculated directly from the multichannel
 % data as initially proposed in Marques et al, Neuroimage, 2009
 
-if nargin<2 || isempty(regularization)
-    multiplyingFactor = 1;
-else
-    multiplyingFactor = regularization;
-end
 if nargin<3
     visualize = true;
+end
+if nargin<2 || isempty(regularization)
+    multiplyingFactor = 1;
+    visualize         = true;
+else
+    multiplyingFactor = regularization;
 end
 FinalChoice = 'n';
 
