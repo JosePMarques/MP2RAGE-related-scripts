@@ -147,8 +147,8 @@ for n = 1:numel(MP2RAGE)
         INV2Ref   = spm_vol_gz(MP2RAGE(n).filenameINV2);
         x         = spm_coreg(INV2Ref, B1SrcMag);               % Coregister B1SrcMag with INV2Ref
         R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
-        B1img.img = NaN(Ref.dim);
-        for z = 1:Ref.dim(3)                                    % Reslice the B1Src volume at the coordinates of each transverse slice of INV2Ref
+        B1img.img = NaN(INV2Ref.dim);
+        for z = 1:INV2Ref.dim(3)                                % Reslice the B1Src volume at the coordinates of each transverse slice of INV2Ref
             B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2Ref.dim(1:2), 1);
         end
     else
