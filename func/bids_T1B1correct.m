@@ -73,12 +73,15 @@ end
 if nargin<7 || isempty(B1Scaling)
     B1Scaling = 900;
 end
+if nargin<8 || isempty(Realign)
+    Realign = true;
+end
 assert(contains(Expression.uni, '_'), ...
     'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
 
 
 %% Get all the MP2RAGE and B1map images
-MP2RAGE = [];
+MP2RAGE = {};
 for subject = subjects'
     
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
@@ -111,18 +114,15 @@ for subject = subjects'
             continue
         end
         
-        MP2RAGE(n).filenameUNI  = fullfile(uni.folder, uni.name);           % Standard MP2RAGE T1w image
-        MP2RAGE(n).filenameINV1 = fullfile(inv1.folder, inv1.name);
-        MP2RAGE(n).filenameINV2 = fullfile(inv2.folder, inv2.name);
-        MP2RAGE(n)              = PopulateMP2RAGEStructure(MP2RAGE(n), EchoSpacing, NrShots);
-        
+        MP2RAGE{n}   = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots);
+
         suffix       = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
         T1mapname{n} = fullfile(session.folder, session.name, 'anat', strrep(uni.name, ['_' suffix{end}], '_T1map'));   % Corrected B1-map
         
         fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, B1map{n}.name, T1mapname{n})
         
         % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
-        plotMP2RAGEproperties(MP2RAGE(n))
+        plotMP2RAGEproperties(MP2RAGE{n})
     
     end
     
@@ -132,23 +132,17 @@ end
 %% Process all the images
 for n = 1:numel(MP2RAGE)
     
-    fprintf('\n--> Processing: %s (%i/%i\n)', MP2RAGE(n).filenameUNI, n, numel(MP2RAGE))
+    fprintf('\n--> Processing: %s (%i/%i\n)', MP2RAGE{n}.filenameUNI, n, numel(MP2RAGE))
     
-    % Get the UNI and T1map fileparts (robust for .nii.gz file extensions)
-    [UNIbase, UNIext]     = strtok(MP2RAGE(n).filenameUNI, '.');
-    [UNIpath, UNIfname]   = fileparts(UNIbase);
-    [T1mapbase, T1mapext] = strtok(T1mapname{n}, '.');
-    [~, T1mapfname]       = fileparts(T1mapbase);
-    
-    % Realign and reslice the B1-map to the UNI image
+    % Realign and reslice the B1-map to the INV2 image
     if Realign
         B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
         B1SrcMag  = spm_vol_gz(fullfile(B1mag{n}.folder, B1mag{n}.name));
-        INV2Ref   = spm_vol_gz(MP2RAGE(n).filenameINV2);
+        INV2Ref   = spm_vol_gz(MP2RAGE{n}.filenameINV2);
         x         = spm_coreg(INV2Ref, B1SrcMag);               % Coregister B1SrcMag with INV2Ref
         R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
         B1img.img = NaN(INV2Ref.dim);
-        for z = 1:INV2Ref.dim(3)                                % Reslice the B1Src volume at the coordinates of each transverse slice of INV2Ref
+        for z = 1:INV2Ref.dim(3)                                % Reslice the B1Src volume at the coordinates of each coregistered transverse slice of INV2Ref
             B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2Ref.dim(1:2), 1);
         end
     else
@@ -157,13 +151,22 @@ for n = 1:numel(MP2RAGE)
     
     % Perform the correction
     B1img.img  = double(B1img.img) / B1Scaling;
-    MP2RAGEimg = load_untouch_nii(MP2RAGE(n).filenameUNI);
-    T1map      = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE(n), [], invEFF);
+    MP2RAGEimg = load_untouch_nii(MP2RAGE{n}.filenameUNI);
+    T1map      = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], invEFF);
     
-    % Save the T1-map image and copy-over & enrich the UNI json-file
+    % Save the T1-map image
     save_untouch_nii(T1map, T1mapname{n})
-    copyfile(fullfile(UNIbase,'.json'), [strtok(T1mapname{n},'.') '.json'])
     
+    % Copy-over & enrich the UNI json-file to a T1map json-file
+    [UNIpath, UNIfname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
+    [T1path, T1fname]           = myfileparts(T1mapname{n});
+    copyfile(fullfile(UNIpath,UNIfname,'.json'), fullfile(T1path,T1fname,'.json'))
+%     jsonT1map        = jsondecode(fileread(jsonT1mapfname));
+%     jsonT1map.enrich = TODO;
+%     fid = fopen(jsonT1mapfname, 'w');
+%     fprintf(fid, jsonencode(jsonT1map));
+%     fclose(fid);
+
     % Adapt the IntendedFor fieldmap values (TODO)
     
     % Adapt the scans.tsv file
@@ -183,8 +186,9 @@ for n = 1:numel(MP2RAGE)
         else
             UNIdata = repmat({'n/a'}, 1, size(scanstable.Variables, 2));
         end
-        T1mapscan                = ['anat/' T1mapfname T1mapext];
-        scanstable(T1mapscan, :) = UNIdata;
+        [~, T1mapfname, T1mapext] = myfileparts(T1mapname{n});
+        T1mapscan                 = ['anat/' T1mapfname T1mapext];
+        scanstable(T1mapscan, :)  = UNIdata;
         fprintf('Updating %s:\n--> %s%s\n\n', scansfile, T1mapscan, sprintf('\t%s',UNIdata{:}))
         writetable(scanstable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
     end
@@ -192,21 +196,26 @@ for n = 1:numel(MP2RAGE)
 end
 
 
-function MP2RAGEstructure = PopulateMP2RAGEStructure(MP2RAGEstructure, EchoSpacing, NrShots)
+function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots)
 
 % MP2RAGEstructure = PopulateMP2RAGEStructure(MP2RAGEstructure, EchoSpacing, NrShots)
 %
 % INPUT
-%   MP2RAGEstructure.filenameUNI  - the UNI file
-%   MP2RAGEstructure.filenameINV1 - the INV1 file
-%   MP2RAGEstructure.filenameINV2 - the INV2 file
-%   EchoSpacing  - the echo spacing in secs that typically is not given on the
-%                  json file. if it is not given we take it to be twice the echo time
-%   NrShots      - refers to the number of shots in the inner loop, the json
-%                  file doesn't usually accomodate this
+%   uni         - the directory item of the UNI file
+%   inv1        - the directory item of the INV1 file
+%   inv2        - the directory item of the INV2 file
+%   EchoSpacing - the echo spacing in secs that typically is not given on the
+%                 json file. if it is not given we take it to be twice the echo time
+%   NrShots     - refers to the number of shots in the inner loop, the json
+%                 file doesn't usually accomodate this
 
-jsonINV1 = jsondecode(fileread([strtok(MP2RAGEstructure.filenameINV1,'.') '.json']));
-jsonINV2 = jsondecode(fileread([strtok(MP2RAGEstructure.filenameINV2,'.') '.json']));
+
+MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);           % Standard MP2RAGE T1w image
+MP2RAGEstructure.filenameINV1 = fullfile(inv1.folder, inv1.name);
+MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
+
+jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
+jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
 
 MP2RAGEstructure.B0          =  jsonINV1.MagneticFieldStrength;                 % in Tesla
 MP2RAGEstructure.TR          =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
@@ -231,7 +240,7 @@ function Vol = spm_vol_gz(FileName)
 
 % A wrapper around spm_vol that unzips .nii.gz files in a temp-folder
 
-[~, Ext] = strtok(FileName, '.');
+[~, ~, Ext] = myfileparts(FileName);
 switch Ext
     case '.nii.gz'
         FileName = char(gunzip(FileName, tempdir));
@@ -241,3 +250,12 @@ switch Ext
 end
 
 Vol = spm_vol(FileName);
+
+
+function [pathname, filename, ext] = myfileparts(filename)
+
+% Robust against .nii.gz file extension
+
+[pathname, filename, ext2] = fileparts(filename);
+[~, filename, ext1]        = fileparts(filename);
+ext                        = [ext1 ext2];
