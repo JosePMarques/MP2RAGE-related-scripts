@@ -160,7 +160,7 @@ for n = 1:numel(MP2RAGE)
     % Copy-over & enrich the UNI json-file to a T1map json-file
     [UNIpath, UNIfname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
     [T1path, T1fname]           = myfileparts(T1mapname{n});
-    copyfile(fullfile(UNIpath,UNIfname,'.json'), fullfile(T1path,T1fname,'.json'))
+    copyfile(fullfile(UNIpath,[UNIfname '.json']), fullfile(T1path,[T1fname '.json']))
 %     jsonT1map        = jsondecode(fileread(jsonT1mapfname));
 %     jsonT1map.enrich = TODO;
 %     fid = fopen(jsonT1mapfname, 'w');
@@ -209,18 +209,16 @@ function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacin
 %   NrShots     - refers to the number of shots in the inner loop, the json
 %                 file doesn't usually accomodate this
 
+jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
+jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
 
 MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);           % Standard MP2RAGE T1w image
 MP2RAGEstructure.filenameINV1 = fullfile(inv1.folder, inv1.name);
 MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
-
-jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
-jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
-
-MP2RAGEstructure.B0          =  jsonINV1.MagneticFieldStrength;                 % in Tesla
-MP2RAGEstructure.TR          =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
-MP2RAGEstructure.TIs         = [jsonINV1.InversionTime jsonINV2.InversionTime]; % inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
-MP2RAGEstructure.FlipDegrees = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
+MP2RAGEstructure.B0           =  jsonINV1.MagneticFieldStrength;                 % in Tesla
+MP2RAGEstructure.TR           =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
+MP2RAGEstructure.TIs          = [jsonINV1.InversionTime jsonINV2.InversionTime]; % inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
+MP2RAGEstructure.FlipDegrees  = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
 
 if nargin<2 || isempty(EchoSpacing)
     MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;       % TR of the GRE readout
