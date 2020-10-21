@@ -212,7 +212,7 @@ function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacin
 jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
 jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
 
-MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);           % Standard MP2RAGE T1w image
+MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);                  % Standard MP2RAGE T1w image
 MP2RAGEstructure.filenameINV1 = fullfile(inv1.folder, inv1.name);
 MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
 MP2RAGEstructure.B0           =  jsonINV1.MagneticFieldStrength;                 % in Tesla
@@ -220,13 +220,13 @@ MP2RAGEstructure.TR           =  jsonINV1.RepetitionTime;                       
 MP2RAGEstructure.TIs          = [jsonINV1.InversionTime jsonINV2.InversionTime]; % inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
 MP2RAGEstructure.FlipDegrees  = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
 
-if nargin<2 || isempty(EchoSpacing)
+if nargin<4 || isempty(EchoSpacing)
     MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;       % TR of the GRE readout
 else
     MP2RAGEstructure.TRFLASH = EchoSpacing;
 end
 
-if nargin<3 || isempty(NrShots)
+if nargin<5 || isempty(NrShots)
     assert(isfield(jsonINV1,'ReconMatrixPE'), 'The json-file does not contain "NrSHots"-info (i.e. "ReconMatrixPE") beloning to:\n%s', MP2RAGEstructure.filenameINV1)
     MP2RAGEstructure.NZslices = jsonINV1.ReconMatrixPE;     % Slices Per Slab * [PartialFourierInSlice-0.5 0.5] OR Base Resolution * [PartialFourierInPE-0.5 0.5]/iPATpe + [RefLines/2 RefLines/2]*(1-1/iPATpe )
 else
