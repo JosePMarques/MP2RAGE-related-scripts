@@ -1,7 +1,7 @@
-function [T1temp, MP2RAGEcorrected] = T1B1correctpackageTFL(B1img, MP2RAGEimg, T1img, MP2RAGE, brain, invEFF)
+function [T1temp, MP2RAGEcorrected] = T1B1correctpackageTFL(B1img, MP2RAGEimg, T1img, MP2RAGE, brain, InvEff)
 % Usage:
 %
-% [T1corr, MP2RAGEcorr] = T1B1correctpackage(B1, MP2RAGEimg, T1img, MP2RAGE, brain, invEFF)
+% [T1corr, MP2RAGEcorr] = T1B1correctpackage(B1, MP2RAGEimg, T1img, MP2RAGE, brain, InvEff)
 %
 % B1 and MP2RAGEimg (and T1img) are the nii structures resulting from loading
 % the MP2RAGE (MP2RAGEimg, T1img) and the result of some B1 mapping technique
@@ -35,15 +35,15 @@ function [T1temp, MP2RAGEcorrected] = T1B1correctpackageTFL(B1img, MP2RAGEimg, T
 % measured to be ~0.96
 %
 % Outputs are:
-%  T1corr      - T1map corrected for B1 bias
-%  MP2RAGEcorr - MP2RAGE image corrected for B1 bias
+%  T1corr  - T1map corrected for B1 bias
+%  MP2RAGEcorr - MP2RAGE UNI image corrected for B1 bias
 %
 % Please cite:
 %  Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
 %  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
 
-if nargin<6 || isempty(invEFF)
-    invEFF = 0.99;
+if nargin<6 || isempty(InvEff)
+    InvEff = 0.99;
 end
 
 if nargin<5 || isempty(brain)
@@ -97,7 +97,7 @@ xlabel('MP2RAGE');
 
 %% definition of range of B1s and T1s and creation of MP2RAGE lookupvector to make sure the input data for the rest of the code is the MP2RAGEimg
 
-[MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', invEFF);
+[MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', InvEff);
 
 if isempty(MP2RAGEimg)
     T1img.img      = double(T1img.img)/1000;
@@ -119,7 +119,7 @@ k = 0;
 for b1val=B1_vector
     
     k = k+1;
-    [Intensity, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, b1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', invEFF);
+    [Intensity, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, b1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', InvEff);
     MP2RAGEmatrix(k,:)    = interp1(T1vector, Intensity, T1_vector);
     
 end
@@ -171,13 +171,14 @@ colormap(gray)
 
 
 %% creates an MP2RAGEcorrected image and puts both the B1 and T1 in the ms scale
-
-[MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', invEFF);
-
-MP2RAGEcorrected     = MP2RAGEimg;
-MP2RAGEcorrected.img = reshape(interp1(MP2RAGE.T1vector, MP2RAGE.Intensity, T1temp.img(:)), size(T1temp.img));
-MP2RAGEcorrected.img(isnan(MP2RAGEcorrected.img)) =- 0.5;
-MP2RAGEcorrected.img = round(4095*(MP2RAGEcorrected.img + 0.5));
+if nargout > 1
+    [MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', InvEff);
+    
+    MP2RAGEcorrected     = MP2RAGEimg;
+    MP2RAGEcorrected.img = reshape(interp1(MP2RAGE.T1vector, MP2RAGE.Intensity, T1temp.img(:)), size(T1temp.img));
+    MP2RAGEcorrected.img(isnan(MP2RAGEcorrected.img)) =- 0.5;
+    MP2RAGEcorrected.img = round(4095*(MP2RAGEcorrected.img + 0.5));
+end
 
 T1temp.img = (T1temp.img)*1000;         % Retain precision when saved as integer
 
