@@ -160,7 +160,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     if integerformat==0
         MP2RAGEimg.img = MP2RAGEimgRobustPhaseSensitive;
     else
-        MP2RAGEimg.img = round(4095*(MP2RAGEimgRobustPhaseSensitive + 0.5));
+        MP2RAGEimg.img = round(4095 * (MP2RAGEimgRobustPhaseSensitive + 0.5));
     end
     save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
     
@@ -173,7 +173,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
         jsonT1.NoiseRegularization = regularization;
         
         [T1path, T1fname] = myfileparts(MP2RAGE.filenameOUT);
-        fid = fopen(fullfile(T1path,[T1fname '.json']), 'w');
+        fid = fopen(fullfile(T1path, [T1fname '.json']), 'w');
         fprintf(fid, jsonencode(jsonT1));
         fclose(fid);
     end
