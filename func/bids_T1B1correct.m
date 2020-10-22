@@ -172,7 +172,7 @@ for n = 1:numel(MP2RAGE)
     jsonT1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
     
     [T1path, T1name] = myfileparts(T1mapname{n});
-    fid = fopen(fullfile(T1path,[T1name '.json']), 'w');
+    fid = fopen(fullfile(T1path, [T1name '.json']), 'w');
     fprintf(fid, jsonencode(jsonT1map));
     fclose(fid);
 
