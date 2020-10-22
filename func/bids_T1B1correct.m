@@ -162,7 +162,7 @@ for n = 1:numel(MP2RAGE)
     save_untouch_nii(T1map, T1mapname{n})
     [UNIpath, UNIname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
     if Correct
-        save_untouch_nii(MP2RAGECorr, fullfile(UNIpath, [UNIname 'corr' UNIext]))
+        save_untouch_nii(MP2RAGECorr, fullfile(UNIpath, [UNIname 'B1corr' UNIext]))
     end
     
     % Read & enrich the UNI json-file and write it as a T1map json-file
