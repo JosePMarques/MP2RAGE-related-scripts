@@ -65,7 +65,7 @@ for B1val=0.6:0.2:1.4
     
     [MP2RAGEamp, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, B1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal');
     
-    plot(MP2RAGEamp, T1vector, 'color', [0.5 0.5 0.5]*B1val, 'Linewidth',2)
+    plot(MP2RAGEamp, T1vector, 'color',[0.5 0.5 0.5]*B1val, 'Linewidth',2)
     hold on
     
 end
@@ -101,7 +101,7 @@ xlabel('MP2RAGE');
 
 if isempty(MP2RAGEimg)
     T1img.img      = double(T1img.img)/1000;
-    MP2RAGEimg.img = reshape(interp1(MP2RAGE.T1vector,MP2RAGE.Intensity,T1img.img(:)),size(B1img.img));    
+    MP2RAGEimg.img = reshape(interp1(MP2RAGE.T1vector, MP2RAGE.Intensity, T1img.img(:)), size(B1img.img));    
     MP2RAGEimg.img(isnan(MP2RAGEimg.img)) = -0.5;
 else
     MP2RAGEimg.img = double(MP2RAGEimg.img)/4095-0.5;
