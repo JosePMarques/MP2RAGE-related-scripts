@@ -33,7 +33,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   Realign         - Uses the magnitude image of the B1-scan to realign and reslice the B1-map to the space of the
 %                     MP2RAGE image if Realign==true (default). Otherwise it is assumed this is already the case
 %                     and this processing step is skipped. NB: Realign requires the SPM12 software on your Matlab-path
-%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in the folder of the UNI file
+%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in BIDSroot/derivatives/MP2RAGE
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
@@ -153,19 +153,16 @@ for n = 1:numel(MP2RAGE)
         B1img = load_untouch_nii(fullfile(B1map{n}.folder, B1map{n}.name));
     end
     
-    % Perform the correction
+    % Perform the unbiased B1-map estimation and the UNI image correction
     B1img.img            = double(B1img.img) / B1Scaling;
     MP2RAGEimg           = load_untouch_nii(MP2RAGE{n}.filenameUNI);
     [T1map, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
     
-    % Save the T1-map image and corrected MP2RAGE image
+    % Save the T1-map image
     save_untouch_nii(T1map, T1mapname{n})
-    [UNIpath, UNIname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
-    if Correct
-        save_untouch_nii(MP2RAGECorr, fullfile(UNIpath, [UNIname 'B1corr' UNIext]))
-    end
     
     % Read & enrich the UNI json-file and write it as a T1map json-file
+    [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
     jsonT1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
     jsonT1map.SeriesDescription   = [jsonT1map.ProtocolName '_B1_bias_corrected'];
     jsonT1map.InversionEfficiency = InvEff;
@@ -178,6 +175,17 @@ for n = 1:numel(MP2RAGE)
     fid = fopen(fullfile(T1path,[T1name '.json']), 'w');
     fprintf(fid, jsonencode(jsonT1map));
     fclose(fid);
+
+    % Save the corrected UNI image & json file
+    if Correct
+        MP2RAGECorrpath = strrep(UNIpath, fullfile(BIDSroot,filesep), fullfile(BIDSroot,'derivatives','MP2RAGE',filesep));
+        MP2RAGECorrname = [UNIname 'B1corr'];
+        save_untouch_nii(MP2RAGECorr, fullfile(MP2RAGECorrpath, [MP2RAGECorrname UNIext]))
+        
+        fid = fopen(fullfile(MP2RAGECorrpath, [MP2RAGECorrname '.json']), 'w');
+        fprintf(fid, jsonencode(jsonT1map));
+        fclose(fid);
+    end
     
     % Adapt the scans.tsv file
     subses = split(UNIname, '_');
