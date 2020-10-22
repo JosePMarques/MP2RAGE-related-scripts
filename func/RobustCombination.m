@@ -1,5 +1,7 @@
 function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, regularization, visualize)
 
+% FUNCTION [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, [regularization], [visualize])
+%
 % This script allows the creation of MP2RAGE T1w images without the strong
 % background noise in air regions.
 %
@@ -81,7 +83,7 @@ INV1final(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg)) = INV1pos(abs(IN
 
 %% visualizing the data
 
-pos = round(3/5*size(INV1final));
+pos = round(3/5 * size(INV1final));
 if visualize
     figureJ(200)
     subplot(411)
@@ -102,12 +104,9 @@ if visualize
 end
 
 
-%% lambda calculation
-
-% Usually the multiplicative factor shouldn't be greater then 10, but that
-% is not the ase when the image is bias field corrected, in which case the
-% noise estimated at the edge of the image might not be such a good measure
-
+%% Lambda calculation
+% Usually the multiplicative factor shouldn't be greater than 10, but that is not the ase when the image is
+% bias field corrected, in which case the noise estimated at the edge of the image might not be a good measure
 while ~strcmpi(FinalChoice, 'y')
     
     noiselevel = multiplyingFactor*mean(mean(mean(INV2img.img(1:end, end-10:end, end-10:end))));
@@ -153,17 +152,39 @@ while ~strcmpi(FinalChoice, 'y')
 end
 
 
-%% Saving data if that is the case
+%% Saving data if filenameOUT is given
+if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
 
-if isfield(MP2RAGE, 'filenameOUT')
-    if ~isempty(MP2RAGE.filenameOUT)
-        disp(['Saving: ' MP2RAGE.filenameOUT])
-        if integerformat==0
-            MP2RAGEimg.img = MP2RAGEimgRobustPhaseSensitive;
-            save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
-        else
-            MP2RAGEimg.img = round(4095*(MP2RAGEimgRobustPhaseSensitive + 0.5));
-            save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
-        end 
+    % Save a nifti-file
+    disp(['Saving: ' MP2RAGE.filenameOUT])
+    if integerformat==0
+        MP2RAGEimg.img = MP2RAGEimgRobustPhaseSensitive;
+    else
+        MP2RAGEimg.img = round(4095*(MP2RAGEimgRobustPhaseSensitive + 0.5));
     end
+    save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
+    
+    % Read & enrich the UNI json-file and write it as a T1w json-file
+    [UNIpath, UNIname] = myfileparts(MP2RAGE{n}.filenameUNI);
+    jsonUNIfile        = fullfile(UNIpath, [UNIname '.json']);
+    if isfile(jsonUNIfile)
+        jsonT1                     = jsondecode(fileread(jsonUNIfile));
+        jsonT1.SeriesDescription   = [jsonT1.ProtocolName '_MP2RAGE_denoised_background'];
+        jsonT1.NoiseRegularization = regularization;
+        
+        [T1path, T1fname] = myfileparts(MP2RAGE.filenameOUT);
+        fid = fopen(fullfile(T1path,[T1fname '.json']), 'w');
+        fprintf(fid, jsonencode(jsonT1));
+        fclose(fid);
+    end
+    
 end
+
+
+function [pathname, filename, ext] = myfileparts(filename)
+
+% Robust against .nii.gz file extension
+
+[pathname, filename, ext2] = fileparts(filename);
+[~, filename, ext1]        = fileparts(filename);
+ext                        = [ext1 ext2];
