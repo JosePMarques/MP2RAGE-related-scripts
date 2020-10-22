@@ -103,7 +103,7 @@ for n = 1:numel(MP2RAGE)
     
     % Save a combined image
     [outpath, outname, outext] = fileparts(MP2RAGE(n).filenameOUT);
-    if ~exist(outpath, 'dir')
+    if ~isfolder(outpath)
         mkdir(outpath)
     end
     RobustCombination(MP2RAGE(n), regularization, true);
@@ -120,7 +120,7 @@ for n = 1:numel(MP2RAGE)
             subses = subses(1);
         end
         scansfile = fullfile(bidsroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
-        if exist(scansfile, 'file')
+        if isfile(scansfile)
             scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
             [UNIpath, UNIname, UNIext] = fileparts(MP2RAGE(n).filenameUNI);
             [~, source]                = fileparts(UNIpath);            
