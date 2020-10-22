@@ -1,6 +1,6 @@
-function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, invEFF, B1Scaling, Realign)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign)
 
-% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [invEFF], [B1Scaling], [Realign])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz").
@@ -26,7 +26,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                     The 'B1mag' field is only needed if Realign==True (see below)
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
-%   invEFF          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
+%   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
 %                     flip-angle is the actual flip-angle. Default = 900
@@ -67,8 +67,8 @@ end
 if nargin<5 || isempty(subjects)
     subjects = dir(fullfile(BIDSroot, 'sub-*'));
 end
-if nargin<6 || isempty(invEFF)
-    invEFF = 0.96;
+if nargin<6 || isempty(InvEff)
+    InvEff = 0.96;
 end
 if nargin<7 || isempty(B1Scaling)
     B1Scaling = 900;
@@ -152,35 +152,38 @@ for n = 1:numel(MP2RAGE)
     % Perform the correction
     B1img.img  = double(B1img.img) / B1Scaling;
     MP2RAGEimg = load_untouch_nii(MP2RAGE{n}.filenameUNI);
-    T1map      = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], invEFF);
+    T1map      = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
     
     % Save the T1-map image
     save_untouch_nii(T1map, T1mapname{n})
     
-    % Copy-over & enrich the UNI json-file to a T1map json-file
-    [UNIpath, UNIfname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
-    [T1path, T1fname]           = myfileparts(T1mapname{n});
-    copyfile(fullfile(UNIpath,[UNIfname '.json']), fullfile(T1path,[T1fname '.json']))
-%     jsonT1map        = jsondecode(fileread(jsonT1mapfname));
-%     jsonT1map.enrich = TODO;
-%     fid = fopen(jsonT1mapfname, 'w');
-%     fprintf(fid, jsonencode(jsonT1map));
-%     fclose(fid);
-
-    % Adapt the IntendedFor fieldmap values (TODO)
+    % Read & enrich the UNI json-file and write it as a T1map json-file
+    [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
+    jsonT1map                     = jsondecode(fileread(fullfile(UNIpath,[UNIname '.json'])));
+    jsonT1map.SeriesDescription   = [jsonT1map.ProtocolName '_B1_bias_corrected'];
+    jsonT1map.InversionEfficiency = InvEff;
+    jsonT1map.NumberOfShots       = MP2RAGE{n}.NZslices;
+    jsonT1map.EchoSpacing         = MP2RAGE{n}.TRFLASH;
+    jsonT1map.InversionTime       = MP2RAGE{n}.TIs;
+    jsonT1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
+    
+    [T1path, T1name] = myfileparts(T1mapname{n});
+    fid = fopen(fullfile(T1path,[T1name '.json']), 'w');
+    fprintf(fid, jsonencode(jsonT1map));
+    fclose(fid);
     
     % Adapt the scans.tsv file
-    subses = split(UNIfname, '_');
-    if contains(UNIfname, '_ses-')
+    subses = split(UNIname, '_');
+    if contains(UNIname, '_ses-')
         subses = subses(1:2);
     else
         subses = subses(1);
     end
     scansfile = fullfile(BIDSroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
-    if exist(scansfile, 'file')
+    if isfile(scansfile)
         scanstable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
         [~, source] = fileparts(UNIpath);
-        UNIscan     = [source '/' UNIfname UNIext];
+        UNIscan     = [source '/' UNIname UNIext];
         if any(contains(scanstable.Properties.RowNames, UNIscan))
             UNIdata = scanstable(UNIscan,:).Variables;
         else
