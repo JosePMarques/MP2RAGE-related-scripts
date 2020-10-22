@@ -1,6 +1,6 @@
-function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, Correct)
 
-% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign], [Correct])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz").
@@ -23,7 +23,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                                      'inv2', ['extra_data' filesep '*_inv2.nii*'], ...
 %                                      'B1map',['extra_data' filesep '*_B1map.nii*'], ...
 %                                      'B1mag',['extra_data' filesep '*_mod-B1map_*magnitude.nii*']);
-%                     The 'B1mag' field is only needed if Realign==True (see below)
+%                     The 'B1mag' field is only needed if Realign==true (see below)
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
@@ -31,8 +31,9 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
 %                     flip-angle is the actual flip-angle. Default = 900
 %   Realign         - Uses the magnitude image of the B1-scan to realign and reslice the B1-map to the space of the
-%                     MP2RAGE image if Realign==True (default). Otherwise it is assumed this is already the case
+%                     MP2RAGE image if Realign==true (default). Otherwise it is assumed this is already the case
 %                     and this processing step is skipped. NB: Realign requires the SPM12 software on your Matlab-path
+%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in the folder of the UNI file
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
@@ -75,6 +76,9 @@ if nargin<7 || isempty(B1Scaling)
 end
 if nargin<8 || isempty(Realign)
     Realign = true;
+end
+if nargin<9 || isempty(Correct)
+    Correct = true;
 end
 assert(contains(Expression.uni, '_'), ...
     'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_uni")', Expression.uni)
@@ -150,16 +154,19 @@ for n = 1:numel(MP2RAGE)
     end
     
     % Perform the correction
-    B1img.img  = double(B1img.img) / B1Scaling;
-    MP2RAGEimg = load_untouch_nii(MP2RAGE{n}.filenameUNI);
-    T1map      = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
+    B1img.img            = double(B1img.img) / B1Scaling;
+    MP2RAGEimg           = load_untouch_nii(MP2RAGE{n}.filenameUNI);
+    [T1map, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
     
-    % Save the T1-map image
+    % Save the T1-map image and corrected MP2RAGE image
     save_untouch_nii(T1map, T1mapname{n})
+    [UNIpath, UNIname, UNIext] = myfileparts(MP2RAGE{n}.filenameUNI);
+    if Correct
+        save_untouch_nii(MP2RAGECorr, fullfile(UNIpath, [UNIname 'corr' UNIext]))
+    end
     
     % Read & enrich the UNI json-file and write it as a T1map json-file
-    [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
-    jsonT1map                     = jsondecode(fileread(fullfile(UNIpath,[UNIname '.json'])));
+    jsonT1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
     jsonT1map.SeriesDescription   = [jsonT1map.ProtocolName '_B1_bias_corrected'];
     jsonT1map.InversionEfficiency = InvEff;
     jsonT1map.NumberOfShots       = MP2RAGE{n}.NZslices;
