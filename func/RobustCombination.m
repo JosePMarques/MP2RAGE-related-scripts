@@ -165,7 +165,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
     
     % Read & enrich the UNI json-file and write it as a T1w json-file
-    [UNIpath, UNIname] = myfileparts(MP2RAGE{n}.filenameUNI);
+    [UNIpath, UNIname] = myfileparts(MP2RAGE.filenameUNI);
     jsonUNIfile        = fullfile(UNIpath, [UNIname '.json']);
     if isfile(jsonUNIfile)
         jsonT1                     = jsondecode(fileread(jsonUNIfile));
