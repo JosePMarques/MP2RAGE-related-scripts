@@ -2,28 +2,29 @@ function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination
 
 % FUNCTION [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, [regularization], [visualize])
 %
-% This script allows the creation of MP2RAGE T1w images without the strong
-% background noise in air regions.
+% This script creates MP2RAGE T1w images without the strong background noise in air regions.
 %
 % MP2RAGE is a structure that should have the following fields:
 % MP2RAGE.filenameUNI
 % MP2RAGE.filenameINV1
 % MP2RAGE.filenameINV2
 % MP2RAGE.filenameOUT - it does not have to exist, only if you want to save the output file.
-% If you have already done your 'homework' with your datasets using the same protocol
-% you can then just use this function shows one possible implementation of the methods suggested
-% in:
+%
+% If you have already done your 'homework' with your datasets using the same protocol you can
+% then just use this function shows one possible implementation of the methods suggested in:
 %
 % O'Brien, et al, 2014.
 % Robust T1-Weighted Structural Brain Imaging and Morphometry at 7T Using MP2RAGE
 % PLOS ONE 9, e99676. doi:10.1371/journal.pone.0099676
 % http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099676
 %
-% Although in the original paper the method only worked on raw multichannel
-% data, here that constraint has been overcome and the correction can be
-% implemented if both SOS images of the two inversion times exist and a
-% MP2RAGE T1w image that has been calculated directly from the multichannel
-% data as initially proposed in Marques et al, Neuroimage, 2009
+% Although in the original paper the method only worked on raw multichannel data, here that
+% constraint has been overcome and the correction can be implemented if both SOS images of the
+% two inversion times exist and a MP2RAGE T1w image that has been calculated directly from the
+% multichannel data as initially proposed in Marques et al, Neuroimage, 2009
+
+
+%% Parse the input arguments
 
 if nargin<3
     visualize = true;
@@ -37,14 +38,14 @@ end
 FinalChoice = 'n';
 
 
-%% defines relevant functions
+%% Define relevant functions
 
 MP2RAGErobustfunc = @(INV1, INV2, beta)(conj(INV1).*INV2-beta) ./ (INV1.^2 + INV2.^2 + 2*beta);
 rootsquares_pos   = @(a, b, c)(-b + sqrt(b.^2 - 4*a.*c)) ./ (2*a);
 rootsquares_neg   = @(a, b, c)(-b - sqrt(b.^2 - 4*a.*c)) ./ (2*a);
 
 
-%% load Data
+%% Load Data
 
 disp(['Loading images from: ' fileparts(MP2RAGE.filenameUNI)])
 MP2RAGEimg     = load_untouch_nii(MP2RAGE.filenameUNI);
@@ -63,7 +64,7 @@ else
 end
 
 
-%% computes correct INV1 dataset
+%% Compute correct INV1 dataset
 
 % Gives the correct polarity to INV1
 INV1img.img = sign(MP2RAGEimg.img) .* INV1img.img;
@@ -81,7 +82,7 @@ INV1final(abs(INV1img.img-INV1pos) >  abs(INV1img.img-INV1neg)) = INV1neg(abs(IN
 INV1final(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg)) = INV1pos(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg));
 
 
-%% visualizing the data
+%% Visualize the data
 
 pos = round(3/5 * size(INV1final));
 if visualize
@@ -104,9 +105,10 @@ if visualize
 end
 
 
-%% Lambda calculation
+%% Calculate lambda
 % Usually the multiplicative factor shouldn't be greater than 10, but that is not the ase when the image is
 % bias field corrected, in which case the noise estimated at the edge of the image might not be a good measure
+
 while ~strcmpi(FinalChoice, 'y')
     
     noiselevel = multiplyingFactor*mean(mean(mean(INV2img.img(1:end, end-10:end, end-10:end))));
@@ -152,7 +154,8 @@ while ~strcmpi(FinalChoice, 'y')
 end
 
 
-%% Saving data if filenameOUT is given
+%% Save data if filenameOUT is given
+
 if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
 
     % Save a nifti-file
@@ -182,7 +185,7 @@ end
 
 
 function [pathname, filename, ext] = myfileparts(filename)
-
+%%
 % Robust against .nii.gz file extension
 
 [pathname, filename, ext2] = fileparts(filename);

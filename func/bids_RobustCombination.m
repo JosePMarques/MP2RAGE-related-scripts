@@ -38,6 +38,8 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %
 % Marcel Zwiers, 24/9/2020
 
+
+%% Parse the input arguments
 if nargin<2
     regularization = [];
 end
@@ -55,7 +57,8 @@ end
 assert(contains(expression.uni, '_'), ...
     'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
 
-% Get all the MP2RAGE images
+
+%% Get all the MP2RAGE images
 MP2RAGE = [];
 for subject = subjects'
     
@@ -66,7 +69,9 @@ for subject = subjects'
     end
     
     for session = sessions'
+        
         fprintf('%s:\n', fullfile(session.folder, session.name))
+        
         uni  = dir(fullfile(session.folder, session.name, expression.uni));
         inv1 = dir(fullfile(session.folder, session.name, expression.inv1));
         inv2 = dir(fullfile(session.folder, session.name, expression.inv2));
@@ -77,6 +82,7 @@ for subject = subjects'
             warning('Too many UNI, INV1 & INV2 images found in:\n%s\n%s\n', fullfile(subject.name, session.name, expression.uni), sprintf('%s\n', uni.name, inv1.name, inv2.name))
             continue
         end
+        
         index                       = numel(MP2RAGE) + 1;
         MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % Standard MP2RAGE T1w image
         MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image
@@ -88,17 +94,21 @@ for subject = subjects'
         else
             MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                % T1w image without background noise;
         end
+        
         fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)        
+
     end
     
 end
 
-% Get a good regularization value from the first MP2RAGE image
+
+%% Get a good regularization value from the first MP2RAGE image
 if isempty(regularization)
     [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), [], true);
 end
 
-% Process all the MP2RAGE images
+
+%% Process all the MP2RAGE images
 for n = 1:numel(MP2RAGE)
     
     % Save a combined image
@@ -108,17 +118,16 @@ for n = 1:numel(MP2RAGE)
     end
     RobustCombination(MP2RAGE(n), regularization, true);
 
+    % Adapt the scans.tsv file
     if ~strcmp(target, 'derivatives')
     
-        % Adapt the IntendedFor fieldmap values (TODO)
-        
-        % Adapt the scans.tsv file
         subses = split(outname,'_');
         if contains(outname, '_ses-')
             subses = subses(1:2);
         else
             subses = subses(1);
         end
+        
         scansfile = fullfile(bidsroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
         if isfile(scansfile)
             scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
