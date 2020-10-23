@@ -42,6 +42,9 @@ function [T1temp, MP2RAGEcorrected] = T1B1correctpackageTFL(B1img, MP2RAGEimg, T
 %  Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
 %  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
 
+
+%% Parse the input arguments
+
 if nargin<6 || isempty(InvEff)
     InvEff = 0.99;
 end
@@ -54,6 +57,7 @@ if nargin<5 || isempty(brain)
     end
     brain.img = ones(size(brain.img));
 end
+
 
 %% sanity check to see how B1 sensitive your sequence was
 
@@ -95,6 +99,7 @@ text(0.35, T1CSF, 'CSF')
 ylabel('T1');
 xlabel('MP2RAGE');
 
+
 %% definition of range of B1s and T1s and creation of MP2RAGE lookupvector to make sure the input data for the rest of the code is the MP2RAGEimg
 
 [MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', InvEff);
@@ -125,7 +130,7 @@ for b1val=B1_vector
 end
 
 
-%% make the matrix  MP2RAGEMatrix into T1_matrix(B1,ratio)
+%% make the matrix MP2RAGEMatrix into T1_matrix(B1, ratio)
 
 MP2RAGE_vector = linspace(-0.5, 0.5, 40);
 
@@ -144,6 +149,7 @@ for b1val = B1_vector
     end
     
 end
+
 
 %% correcting the estimates of T1 and B1 iteratively
 
