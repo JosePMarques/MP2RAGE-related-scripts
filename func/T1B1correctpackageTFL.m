@@ -141,9 +141,9 @@ for b1val = B1_vector
     try
         T1matrix(k,:) = interp1(MP2RAGEmatrix(k,:), T1_vector, MP2RAGE_vector, 'pchirp'); 
     catch
-        temp = MP2RAGEmatrix(k,:); 
-        temp(isnan(temp)) = linspace(-0.5-eps, -1, length(find(isnan(temp)==1)));
-        temp = interp1(temp, T1_vector, MP2RAGE_vector);
+        temp              = MP2RAGEmatrix(k,:); 
+        temp(isnan(temp)) = linspace(-0.5-eps, -1, sum(isnan(temp(:))));
+        temp              = interp1(temp, T1_vector, MP2RAGE_vector);
         
         T1matrix(k,:) = temp;       
     end
