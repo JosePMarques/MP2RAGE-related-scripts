@@ -180,6 +180,7 @@ for n = 1:numel(MP2RAGE)
     if Correct
         MP2RAGECorrpath = strrep(UNIpath, fullfile(BIDSroot,filesep), fullfile(BIDSroot,'derivatives','MP2RAGE',filesep));
         MP2RAGECorrname = [UNIname 'B1corr'];
+        [~,~]           = mkdir(MP2RAGECorrpath);
         save_untouch_nii(MP2RAGECorr, fullfile(MP2RAGECorrpath, [MP2RAGECorrname UNIext]))
         
         fid = fopen(fullfile(MP2RAGECorrpath, [MP2RAGECorrname '.json']), 'w');
