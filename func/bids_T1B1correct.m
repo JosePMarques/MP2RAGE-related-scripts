@@ -215,37 +215,32 @@ end
 
 
 function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots)
-
-% MP2RAGEstructure = PopulateMP2RAGEStructure(MP2RAGEstructure, EchoSpacing, NrShots)
 %
-% INPUT
-%   uni         - the directory item of the UNI file
-%   inv1        - the directory item of the INV1 file
-%   inv2        - the directory item of the INV2 file
-%   EchoSpacing - the echo spacing in secs that typically is not given on the
-%                 json file. if it is not given we take it to be twice the echo time
-%   NrShots     - refers to the number of shots in the inner loop, the json
-%                 file doesn't usually accomodate this
+%   uni         - The directory item of the UNI file
+%   inv1        - The directory item of the INV1 file
+%   inv2        - The directory item of the INV2 file
+%   EchoSpacing - The echo spacing in secs that typically is not given on the json file. Default: twice the echo time
+%   NrShots     - The number of shots in the inner loop, the json file doesn't usually accomodate this. Default: ReconMatrixPE
 
 jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
 jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
 
+MP2RAGEstructure.B0           =  jsonINV1.MagneticFieldStrength;                 % In Tesla
+MP2RAGEstructure.TR           =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
+MP2RAGEstructure.TIs          = [jsonINV1.InversionTime jsonINV2.InversionTime]; % Inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
+MP2RAGEstructure.FlipDegrees  = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
 MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);                  % Standard MP2RAGE T1w image
 MP2RAGEstructure.filenameINV1 = fullfile(inv1.folder, inv1.name);
 MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
-MP2RAGEstructure.B0           =  jsonINV1.MagneticFieldStrength;                 % in Tesla
-MP2RAGEstructure.TR           =  jsonINV1.RepetitionTime;                        % MP2RAGE TR in seconds
-MP2RAGEstructure.TIs          = [jsonINV1.InversionTime jsonINV2.InversionTime]; % inversion times - time between middle of refocusing pulse and excitatoin of the k-space center encoding
-MP2RAGEstructure.FlipDegrees  = [jsonINV1.FlipAngle     jsonINV2.FlipAngle];     % Flip angle of the two readouts in degrees
 
 if nargin<4 || isempty(EchoSpacing)
-    MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;       % TR of the GRE readout
+    MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;       % TR of the GRE readout in seconds
 else
     MP2RAGEstructure.TRFLASH = EchoSpacing;
 end
 
 if nargin<5 || isempty(NrShots)
-    assert(isfield(jsonINV1,'ReconMatrixPE'), 'The json-file does not contain "NrSHots"-info (i.e. "ReconMatrixPE") beloning to:\n%s', MP2RAGEstructure.filenameINV1)
+    assert(isfield(jsonINV1,'ReconMatrixPE'), 'The json-file does not contain "NrSHots"-info (i.e. "ReconMatrixPE") belonging to:\n%s', MP2RAGEstructure.filenameINV1)
     MP2RAGEstructure.NZslices = jsonINV1.ReconMatrixPE;     % Slices Per Slab * [PartialFourierInSlice-0.5 0.5] OR Base Resolution * [PartialFourierInPE-0.5 0.5]/iPATpe + [RefLines/2 RefLines/2]*(1-1/iPATpe )
 else
     MP2RAGEstructure.NZslices = NrShots;
@@ -253,7 +248,7 @@ end
 
 
 function Vol = spm_vol_gz(FileName)
-
+%
 % A wrapper around spm_vol that unzips .nii.gz files in a temp-folder
 
 [~, ~, Ext] = myfileparts(FileName);
@@ -269,7 +264,7 @@ Vol = spm_vol(FileName);
 
 
 function [pathname, filename, ext] = myfileparts(filename)
-
+%
 % Robust against .nii.gz file extension
 
 [pathname, filename, ext2] = fileparts(filename);
