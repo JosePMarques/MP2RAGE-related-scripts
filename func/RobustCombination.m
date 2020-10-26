@@ -173,7 +173,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     if isfile(jsonUNIfile)
         jsonT1                     = jsondecode(fileread(jsonUNIfile));
         jsonT1.SeriesDescription   = [jsonT1.ProtocolName '_MP2RAGE_denoised_background'];
-        jsonT1.NoiseRegularization = regularization;
+        jsonT1.NoiseRegularization = multiplyingFactor;
         
         [T1path, T1fname] = myfileparts(MP2RAGE.filenameOUT);
         fid = fopen(fullfile(T1path, [T1fname '.json']), 'w');
