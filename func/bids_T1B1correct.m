@@ -173,7 +173,7 @@ for n = 1:numel(MP2RAGE)
     
     [T1path, T1name] = myfileparts(T1mapname{n});
     fid = fopen(fullfile(T1path, [T1name '.json']), 'w');
-    fprintf(fid, jsonencode(jsonT1map));
+    fprintf(fid, '%s', jsonencode(jsonT1map));
     fclose(fid);
 
     % Save the corrected UNI image & json file
@@ -184,7 +184,7 @@ for n = 1:numel(MP2RAGE)
         save_untouch_nii(MP2RAGECorr, fullfile(MP2RAGECorrpath, [MP2RAGECorrname UNIext]))
         
         fid = fopen(fullfile(MP2RAGECorrpath, [MP2RAGECorrname '.json']), 'w');
-        fprintf(fid, jsonencode(jsonT1map));
+        fprintf(fid, '%s', jsonencode(jsonT1map));
         fclose(fid);
     end
     

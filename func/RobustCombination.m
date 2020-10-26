@@ -177,7 +177,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
         
         [T1path, T1fname] = myfileparts(MP2RAGE.filenameOUT);
         fid = fopen(fullfile(T1path, [T1fname '.json']), 'w');
-        fprintf(fid, jsonencode(jsonT1));
+        fprintf(fid, '%s', jsonencode(jsonT1));
         fclose(fid);
     end
     
