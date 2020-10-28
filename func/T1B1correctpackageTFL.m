@@ -62,7 +62,7 @@ end
 %% sanity check to see how B1 sensitive your sequence was
 
 H1 = figure(1);
-set(H1, 'Color',[1 1 1]);
+set(H1, 'Color',[1 1 1], 'Name','B1-sensitivity');
 hold off
 
 for B1val = 0.6:0.2:1.4
@@ -169,7 +169,7 @@ T1temp.img(isnan(T1temp.img)) = 4;  % Set NaN to 4sec: When T1s are very long, y
 temp2                         = squeeze(T1temp.img(:, end/2, :));
 
 H2 = figure(2);
-set(H2, 'Color',[1 1 1]);
+set(H2, 'Color',[1 1 1], 'Name','T1-correction');
 imagesc(temp2 - temp1)
 colorbar
 title('T1 correction');
