@@ -61,19 +61,19 @@ end
 
 %% sanity check to see how B1 sensitive your sequence was
 
-Fig1 = figure(1);
-set(Fig1, 'Color',[1 1 1], 'Name','B1-sensitivity');
-hold(Fig1, 'off')
+H1 = figure(1);
+set(H1, 'Color',[1 1 1], 'Name','B1-sensitivity');
+hold off
 
 for B1val = 0.6:0.2:1.4
     
     [MP2RAGEamp, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, B1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal');
     
-    plot(Fig1, MP2RAGEamp, T1vector, 'color',[0.5 0.5 0.5]*B1val, 'Linewidth',2)
-    hold(Fig1, 'on')
+    plot(MP2RAGEamp, T1vector, 'color',[0.5 0.5 0.5]*B1val, 'Linewidth',2)
+    hold on
     
 end
-legend(Fig1, 'B1=0.6', 'B1=0.8', 'B1=1', 'B1=1.2', 'B1=1.4')
+legend('B1=0.6', 'B1=0.8', 'B1=1', 'B1=1.2', 'B1=1.4')
 
 % examples of T1 values at 3T
 
@@ -92,12 +92,12 @@ else
     T1CSF = 3.5;
 end
 
-plot(Fig1, [-0.5 0.5], [T1CSF T1CSF; T1GM T1GM; T1WM T1WM]', 'Linewidth',2)
-text(Fig1, 0.35, T1WM,  'White Matter')
-text(Fig1, 0.35, T1GM,  'Grey Matter')
-text(Fig1, 0.35, T1CSF, 'CSF')
-ylabel(Fig1, 'T1');
-xlabel(Fig1, 'MP2RAGE');
+plot([-0.5 0.5], [T1CSF T1CSF; T1GM T1GM; T1WM T1WM]', 'Linewidth',2)
+text(0.35, T1WM,  'White Matter')
+text(0.35, T1GM,  'Grey Matter')
+text(0.35, T1CSF, 'CSF')
+ylabel('T1');
+xlabel('MP2RAGE');
 
 
 %% definition of range of B1s and T1s and creation of MP2RAGE lookupvector to make sure the input data for the rest of the code is the MP2RAGEimg
@@ -168,12 +168,12 @@ T1temp.img(isnan(T1temp.img)) = 4;  % Set NaN to 4sec: When T1s are very long, y
 
 temp2                         = squeeze(T1temp.img(:, end/2, :));
 
-Fig2 = figure(2);
-set(Fig2, 'Color',[1 1 1], 'Name','T1-correction');
-imagesc(Fig2, temp2 - temp1)
+H2 = figure(2);
+set(H2, 'Color',[1 1 1], 'Name','T1-correction');
+imagesc(temp2 - temp1)
 colorbar
-title(Fig2, 'T1 correction');
-colormap(Fig2, gray)
+title('T1 correction');
+colormap(gray)
 
 
 %% creates an MP2RAGEcorrected image and puts both the B1 and T1 in the ms scale
