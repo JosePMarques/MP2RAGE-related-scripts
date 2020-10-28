@@ -61,11 +61,11 @@ end
 
 %% sanity check to see how B1 sensitive your sequence was
 
-gcf = figure(3);
-set(gcf, 'Color',[1 1 1]);
+H1 = figure(1);
+set(H1, 'Color',[1 1 1]);
 hold off
 
-for B1val=0.6:0.2:1.4
+for B1val = 0.6:0.2:1.4
     
     [MP2RAGEamp, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, B1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal');
     
@@ -121,7 +121,7 @@ B1_vector = 0.005:0.05:1.9;
 T1_vector = 0.5:0.05:5.2;
 
 k = 0;
-for b1val=B1_vector
+for b1val = B1_vector
     
     k = k+1;
     [Intensity, T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, b1val*MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', InvEff);
@@ -168,8 +168,8 @@ T1temp.img(isnan(T1temp.img)) = 4;  % Set NaN to 4sec: When T1s are very long, y
 
 temp2                         = squeeze(T1temp.img(:, end/2, :));
 
-gcf = figure(1);
-set(gcf,'Color',[1 1 1]);
+H2 = figure(2);
+set(H2, 'Color',[1 1 1]);
 imagesc(temp2 - temp1)
 colorbar
 title('T1 correction');
@@ -197,7 +197,5 @@ if showimages==1
     xlabel('MP2RAGE', 'FontSize',12, 'FontWeight','bold')
     ylabel('B_1', 'FontSize',12, 'FontWeight','bold')
     title('T_1 look-up table', 'FontSize',12, 'FontWeight','bold')
-    H = gca;
-    set(H, 'FontSize',12, 'LineWidth',2)
-    axes(H)
+    set(gca, 'FontSize',12, 'LineWidth',2)
 end

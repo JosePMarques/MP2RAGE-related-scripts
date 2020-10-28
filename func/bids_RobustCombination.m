@@ -103,8 +103,9 @@ end
 
 
 %% Get a good regularization value from the first MP2RAGE image
+HG = figure('Name', 'bids_RobustCombination');
 if isempty(regularization)
-    [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), [], true);
+    [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), [], HG);
 end
 
 
@@ -116,7 +117,7 @@ for n = 1:numel(MP2RAGE)
     if ~isfolder(outpath)
         mkdir(outpath)
     end
-    RobustCombination(MP2RAGE(n), regularization, true);
+    RobustCombination(MP2RAGE(n), regularization, HG);
 
     % Adapt the scans.tsv file
     if ~strcmp(target, 'derivatives')

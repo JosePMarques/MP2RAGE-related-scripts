@@ -86,6 +86,7 @@ assert(contains(Expression.uni, '_'), ...
 
 %% Get all the MP2RAGE and B1map images
 MP2RAGE = {};
+HG = figure('Name', 'bids_T1B1correct');
 for subject = subjects'
     
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
@@ -126,7 +127,7 @@ for subject = subjects'
         fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, B1map{n}.name, T1mapname{n})
         
         % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
-        plotMP2RAGEproperties(MP2RAGE{n})
+        plotMP2RAGEproperties(MP2RAGE{n}, HG)
     
     end
     

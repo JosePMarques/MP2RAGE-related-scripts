@@ -1,6 +1,6 @@
-function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, regularization, visualize)
+function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, regularization, HG)
 
-% FUNCTION [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, [regularization], [visualize])
+% FUNCTION [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination(MP2RAGE, [regularization], [HG])
 %
 % This script creates MP2RAGE T1w images without the strong background noise in air regions.
 %
@@ -27,11 +27,12 @@ function [MP2RAGEimgRobustPhaseSensitive, multiplyingFactor] = RobustCombination
 %% Parse the input arguments
 
 if nargin<3
-    visualize = true;
+    HG = gcf;
+    set(HG, 'Name','RobustCombination')
 end
 if nargin<2 || isempty(regularization)
     multiplyingFactor = 1;
-    visualize         = true;
+    HG                = gcf;
 else
     multiplyingFactor = regularization;
 end
@@ -85,7 +86,7 @@ INV1final(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg)) = INV1pos(abs(IN
 %% Visualize the data
 
 pos = round(3/5 * size(INV1final));
-if visualize
+if isgraphics(HG)
     figureJ(200)
     subplot(411)
     Orthoview(INV1pos, pos, [-200 200])
@@ -116,7 +117,7 @@ while ~strcmpi(FinalChoice, 'y')
     % MP2RAGEimgRobustScanner = MP2RAGErobustfunc(INV1img.img, INV2img.img, noiselevel.^2);
     MP2RAGEimgRobustPhaseSensitive = MP2RAGErobustfunc(INV1final, INV2img.img, noiselevel.^2);
     
-    if visualize
+    if isgraphics(HG)
         
         % Robust Image view
         range = [-0.5 0.40];
@@ -140,6 +141,7 @@ while ~strcmpi(FinalChoice, 'y')
                 fprintf('Final regularization noise level = %g\n\n', multiplyingFactor)
             else
                 multiplyingFactor = input(['New regularization noise level (current = ' num2str(multiplyingFactor) '): ']);
+                HG = gcf;                                   % Make sure we have a figure to plot the noise level
             end
         else
             FinalChoice = 'y';
