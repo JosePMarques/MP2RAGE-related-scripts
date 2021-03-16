@@ -1,6 +1,6 @@
-function bids_T1B1correct(BIDSroot, NrShots, TRExcitation, Expression, subjects, InvEff, B1Scaling, Realign, Target, Correct)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, Target, Correct)
 
-% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [TRExcitation], [Expression], [subjects], [InvEff], [B1Scaling], [Realign], [Target], [Correct])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign], [Target], [Correct])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"
@@ -16,7 +16,7 @@ function bids_T1B1correct(BIDSroot, NrShots, TRExcitation, Expression, subjects,
 %   BIDSroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
 %                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
-%   TRExcitation    - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2 * TE
+%   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2 * TE
 %   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1Ref' fields for selecting the
 %                     corresponding MP2RAGE and B1-map images. A suffix (e.g. '_uni') must be included.
 %                     Default = struct('uni',   ['anat' filesep '*_UNIT1.nii*'], ...
@@ -128,7 +128,7 @@ for subject = subjects'
             continue
         end
         
-        MP2RAGE{n}   = PopulateMP2RAGEStructure(uni, inv1, inv2, TRExcitation, NrShots);
+        MP2RAGE{n}   = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots);
 
         suffix       = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
         if strcmp(Target, 'derivatives')
@@ -230,13 +230,13 @@ for n = 1:numel(MP2RAGE)
 end
 
 
-function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, TRExcitation, NrShots)
+function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots)
 %
-%   uni          - The directory item of the UNI file
-%   inv1         - The directory item of the INV1 file
-%   inv2         - The directory item of the INV2 file
-%   TRExcitation - The RepetitionTimeExcitation value in secs that typically is not given on the json file. Default: twice the echo time
-%   NrShots      - The number of shots in the inner loop, the json file doesn't usually accomodate this. Default: ReconMatrixPE
+%   uni         - The directory item of the UNI file
+%   inv1        - The directory item of the INV1 file
+%   inv2        - The directory item of the INV2 file
+%   EchoSpacing - The RepetitionTimeExcitation value in secs that typically is not given on the json file. Default: twice the echo time
+%   NrShots     - The number of shots in the inner loop, the json file doesn't usually accomodate this. Default: ReconMatrixPE
 
 jsonINV1 = jsondecode(fileread(fullfile(inv1.folder, [strtok(inv1.name,'.') '.json'])));
 jsonINV2 = jsondecode(fileread(fullfile(inv2.folder, [strtok(inv2.name,'.') '.json'])));
@@ -249,14 +249,14 @@ MP2RAGEstructure.filenameUNI  = fullfile(uni.folder, uni.name);                 
 MP2RAGEstructure.filenameINV1 = fullfile(inv1.folder, inv1.name);
 MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
 
-if nargin<4 || isempty(TRExcitation)
+if nargin<4 || isempty(EchoSpacing)
     if isfield(jsonINV1, 'RepetitionTimeExcitation')
         MP2RAGEstructure.TRFLASH = jsonINV1.RepetitionTimeExcitation;           % TR of the GRE readout in seconds
     else
         MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;                       % 2 X EchoTime can be used as a surrogate
     end
 else
-    MP2RAGEstructure.TRFLASH = TRExcitation;
+    MP2RAGEstructure.TRFLASH = EchoSpacing;
 end
 
 if nargin<5 || isempty(NrShots)
