@@ -4,20 +4,21 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %
 % A BIDS-aware wrapper ('bidsapp') around 'RobustCombination' that reads and writes BIDS compliant
 % data. The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as
-% "sub-001_acq-MP2RAGE_inv1.nii.gz"). NB: Fieldmaps intended for MP2RAGE are not accomodated for.
+% "sub-001_acq-MP2RAGE_inv1.nii.gz") or stored according to the BIDS v1.5 standard (e.g.
+% "sub-001_inv-1_MP2RAGE.nii.gz"). NB: Fieldmaps intended for MP2RAGE are not accomodated for.
 %
 % INPUT
 %   bidsroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   regularization  - A noise level regularization term, (default = find level interactively)
 %   expression      - A structure with 'uni', 'inv1' and 'inv2' fields for selecting the
 %                     corresponding MP2RAGE images. The suffix (e.g. '_uni') needs to be included.
-%                     Default = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
-%                                      'inv1',['extra_data' filesep '*_inv1.nii*'], ...
-%                                      'inv2',['extra_data' filesep '*_inv2.nii*'])
+%                     Default = struct('uni',  ['anat' filesep '*_UNIT1.nii*'], ...
+%                                      'inv1', ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
+%                                      'inv2', ['anat' filesep '*_inv-2*_MP2RAGE.nii*']);
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
-%   target          - The target sub-directory in which the combined image is saved (default = 'anat')
-%                     If 'derivatives' then the output is saved in the bids 'derivatives' root-folder
+%   target          - The target sub-directory in which the combined image is saved, e.g. 'anat'
+%                     (default = 'derivatives')
 %
 % EXAMPLES
 %   >> bids_RobustCombination('/project/3015046.06/bids')
@@ -44,18 +45,18 @@ if nargin<2
     regularization = [];
 end
 if nargin<3 || isempty(expression)
-    expression = struct('uni', ['extra_data' filesep '*_uni.nii*'], ...
-                        'inv1',['extra_data' filesep '*_inv1.nii*'], ...
-                        'inv2',['extra_data' filesep '*_inv2.nii*']);
+    expression = struct('uni',  ['anat' filesep '*_UNIT1.nii*'], ...
+                        'inv1', ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
+                        'inv2', ['anat' filesep '*_inv-2*_MP2RAGE.nii*']);
 end
 if nargin<4 || isempty(subjects)
     subjects = dir(fullfile(bidsroot, 'sub-*'));
 end
 if nargin<5 || isempty(target)
-    target = 'anat';
+    target = 'derivatives';
 end
 assert(contains(expression.uni, '_'), ...
-    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_inv1")', expression.uni)
+    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', expression.uni)
 
 
 %% Get all the MP2RAGE images
@@ -90,9 +91,9 @@ for subject = subjects'
         suffix                      = split(expression.uni, '_');                                   % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
         T1name                      = strrep(uni.name, ['_' strtok(suffix{end},'.')], '_T1w');      % Guess the suffix from the search expression
         if strcmp(target, 'derivatives')
-            MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, T1name);      % T1w image without background noise;
+            MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
         else
-            MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                % T1w image without background noise;
+            MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                    % T1w image without background noise;
         end
         
         fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)        
