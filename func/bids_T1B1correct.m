@@ -176,15 +176,15 @@ for n = 1:numel(MP2RAGE)
     save_untouch_nii(T1map, T1mapname{n})
     
     % Read & enrich the UNI json-file and write it as a T1map json-file
-    [UNIpath, UNIname, UNIext]         = myfileparts(MP2RAGE{n}.filenameUNI);
-    jsonT1map                          = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
-    jsonT1map.BasedOn                  = {MP2RAGE{n}.filenameUNI, MP2RAGE{n}.filenameINV1, MP2RAGE{n}.filenameINV2, fullfile(B1map{n}.folder, B1map{n}.name), fullfile(B1Ref{n}.folder, B1Ref{n}.name)};
-    jsonT1map.SeriesDescription        = [jsonT1map.ProtocolName '_B1_bias_corrected'];
-    jsonT1map.InversionEfficiency      = InvEff;
-    jsonT1map.NumberShots              = MP2RAGE{n}.NZslices;
-    jsonT1map.RepetitionTimeExcitation = MP2RAGE{n}.TRFLASH;
-    jsonT1map.InversionTime            = MP2RAGE{n}.TIs;
-    jsonT1map.FlipAngle                = MP2RAGE{n}.FlipDegrees;
+    [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
+    jsonT1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
+    jsonT1map.BasedOn             = {MP2RAGE{n}.filenameUNI, MP2RAGE{n}.filenameINV1, MP2RAGE{n}.filenameINV2, fullfile(B1map{n}.folder, B1map{n}.name), fullfile(B1Ref{n}.folder, B1Ref{n}.name)};
+    jsonT1map.SeriesDescription   = [jsonT1map.ProtocolName '_B1_bias_corrected'];
+    jsonT1map.InversionEfficiency = InvEff;
+    jsonT1map.NumberShots         = MP2RAGE{n}.NZslices;
+    jsonT1map.EchoSpacing         = MP2RAGE{n}.TRFLASH;
+    jsonT1map.InversionTime       = MP2RAGE{n}.TIs;
+    jsonT1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
     
     [T1path, T1name] = myfileparts(T1mapname{n});
     fid = fopen(fullfile(T1path, [T1name '.json']), 'w');
