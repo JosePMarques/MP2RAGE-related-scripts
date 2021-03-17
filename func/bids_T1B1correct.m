@@ -121,13 +121,13 @@ for subject = subjects'
         B1map_ = getdata(session, Expression.B1map);
         B1Ref_ = getdata(session, Expression.B1Ref);
         if isempty(uni) || isempty(B1map_)
-            fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n\n', fullfile(subject.name, session.name, Expression.uni), fullfile(subject.name, session.name, Expression.B1map))
+            fprintf('Could not find UNI & B1-map images with search terms "%s" and "%s"\n', Expression.uni, Expression.B1map)
             continue
         elseif Realign && isempty(B1Ref_)
-            fprintf('Could not find B1-reference image for realignment with search term:\n%s\n\n', fullfile(subject.name, session.name, Expression.B1Ref))
+            fprintf('Could not find B1-reference image for realignment with search term "%s\n', Expression.B1Ref)
             continue
         elseif ~isequal(numel(uni), numel(inv1), numel(inv2))
-            warning('Unequal number of UNI (%i), INV1 (%i) & INV2 (%i) images found in:\n%s\n', numel(uni), numel(inv1), numel(inv2), fullfile(subject.name, session.name, expression.uni))
+            warning('Unequal number of UNI (%i), INV1 (%i) and INV2 (%i) images found with search terms "%s", "%s" and "%s"\n', numel(uni), numel(inv1), numel(inv2), expression.uni, Expression.inv1, Expression.inv2)
             continue
         elseif numel(B1map_) ~= 1
             warning('Ambiguous (%i instead of 1) B1map-images found using "%s"\n', numel(B1map_), Expression.B1map)
