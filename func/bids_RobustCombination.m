@@ -10,11 +10,13 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 % INPUT
 %   bidsroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   regularization  - A noise level regularization term, (default = find level interactively)
-%   expression      - A structure with 'uni', 'inv1' and 'inv2' fields for selecting the
-%                     corresponding MP2RAGE images. The suffix (e.g. '_uni') needs to be included.
-%                     Default = struct('uni',  ['anat' filesep '*_UNIT1.nii*'], ...
+%   expression      - A structure with 'uni', 'inv1' and 'inv2' search fields for selecting the
+%                     corresponding MP2RAGE images in the sub-directory. A suffix needs to be included
+%                     in the uni-expression (e.g. '_UNIT1').
+%                     Default = struct('uni',  ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
 %                                      'inv1', ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
 %                                      'inv2', ['anat' filesep '*_inv-2*_MP2RAGE.nii*']);
+%                     NB: Paths before '::' are prepended to the sub-directories
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   target          - The target sub-directory in which the combined image is saved, e.g. 'anat'
@@ -26,7 +28,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
 %         struct('uni','anat/*_uni.nii*', 'inv1','anat/*_inv1.nii*', 'inv2','anat/*_inv2.nii*'))
 %   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
-%         struct('uni', 'anat/*UNIimages*_MP2RAGE.nii.gz', ...
+%         struct('uni', 'derivatives/SIEMENS::anat/*UNIimages*_MP2RAGE.nii.gz', ...
 %                'inv1','anat/*INV1*_MP2RAGE.nii.gz', ...
 %                'inv2','anat/*INV2*_MP2RAGE.nii.gz'))
 %   >> bids_RobustCombination('/project/3015046.06/bids', [], ...
@@ -37,7 +39,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %
 % See also: DemoRemoveBackgroundNoise, RobustCombination
 %
-% Marcel Zwiers, 24/9/2020
+% Marcel Zwiers, 17/03/2021
 
 
 %% Parse the input arguments
@@ -45,7 +47,7 @@ if nargin<2
     regularization = [];
 end
 if nargin<3 || isempty(expression)
-    expression = struct('uni',  ['anat' filesep '*_UNIT1.nii*'], ...
+    expression = struct('uni',  ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
                         'inv1', ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
                         'inv2', ['anat' filesep '*_inv-2*_MP2RAGE.nii*']);
 end
@@ -55,8 +57,10 @@ end
 if nargin<5 || isempty(target)
     target = 'derivatives';
 end
-assert(contains(expression.uni, '_'), ...
-    'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', expression.uni)
+
+assert(contains(expression.uni, '_'), 'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', expression.uni)
+suffix = split(expression.uni, '_');                                   % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+suffix = suffix{end};
 
 
 %% Get all the MP2RAGE images
@@ -73,30 +77,31 @@ for subject = subjects'
         
         fprintf('%s:\n', fullfile(session.folder, session.name))
         
-        uni  = dir(fullfile(session.folder, session.name, expression.uni));
-        inv1 = dir(fullfile(session.folder, session.name, expression.inv1));
-        inv2 = dir(fullfile(session.folder, session.name, expression.inv2));
+        uni  = getdata(session, expression.uni);
+        inv1 = getdata(session, expression.inv1);
+        inv2 = getdata(session, expression.inv2);
         if isempty(uni) || isempty(inv1) || isempty(inv2)
             fprintf('Could not find UNI, INV1 & INV2 images with search terms:\n%s\n%s\n%s\n\n', fullfile(subject.name, session.name, expression.uni), fullfile(subject.name, session.name, expression.inv1),  fullfile(subject.name, session.name, expression.inv2))
             continue
-        elseif numel(uni)>1 || numel(inv1)>1 || numel(inv2)>1
-            warning('Too many UNI, INV1 & INV2 images found in:\n%s\n%s\n', fullfile(subject.name, session.name, expression.uni), sprintf('%s\n', uni.name, inv1.name, inv2.name))
+        elseif ~isequal(numel(uni), numel(inv1), numel(inv2))
+            warning('Unequal number of UNI (%i), INV1 (%i) & INV2 (%i) images found in:\n%s\n', numel(uni), numel(inv1), numel(inv2), fullfile(subject.name, session.name, expression.uni))
             continue
         end
-        
-        index                       = numel(MP2RAGE) + 1;
-        MP2RAGE(index).filenameUNI  = fullfile(uni.folder, uni.name);                               % Standard MP2RAGE T1w image
-        MP2RAGE(index).filenameINV1 = fullfile(inv1.folder, inv1.name);                             % Inversion Time 1 MP2RAGE T1w image
-        MP2RAGE(index).filenameINV2 = fullfile(inv2.folder, inv2.name);                             % Inversion Time 2 MP2RAGE T1w image
-        suffix                      = split(expression.uni, '_');                                   % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
-        T1name                      = strrep(uni.name, ['_' strtok(suffix{end},'.')], '_T1w');      % Guess the suffix from the search expression
-        if strcmp(target, 'derivatives')
-            MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
-        else
-            MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                    % T1w image without background noise;
+
+        for n = 1:numel(uni)
+            index                       = numel(MP2RAGE) + 1;
+            MP2RAGE(index).filenameUNI  = fullfile(uni(n).folder, uni(n).name);                    % Standard MP2RAGE T1w image
+            MP2RAGE(index).filenameINV1 = fullfile(inv1(n).folder, inv1(n).name);                  % Inversion Time 1 MP2RAGE T1w image
+            MP2RAGE(index).filenameINV2 = fullfile(inv2(n).folder, inv2(n).name);                  % Inversion Time 2 MP2RAGE T1w image
+            T1name                      = strrep(uni(n).name, ['_' strtok(suffix,'.')], '_T1w');   % Guess the suffix from the search expression
+            if strcmp(target, 'derivatives')
+                MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
+            else
+                MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                    % T1w image without background noise;
+            end
+
+            fprintf('%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, MP2RAGE(index).filenameOUT)
         end
-        
-        fprintf('%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, MP2RAGE(index).filenameOUT)        
 
     end
     
@@ -105,7 +110,7 @@ end
 
 %% Get a good regularization value from the first MP2RAGE image
 HG = figure('Name', 'bids_RobustCombination');
-if isempty(regularization)
+if isempty(regularization) && ~isempty(MP2RAGE)
     [~, regularization] = RobustCombination(rmfield(MP2RAGE(1),'filenameOUT'), [], HG);
 end
 
@@ -150,3 +155,14 @@ for n = 1:numel(MP2RAGE)
     end
     
 end
+
+
+function data = getdata(session, expression)
+
+expression = split(expression, '::');
+if numel(expression)>1
+    bidsroot       = split(session.folder, 'sub-');
+    session.folder = fullfile(bidsroot{1}, expression{1}, ['sub-' bidsroot{2}]);
+end
+
+data = dir(fullfile(session.folder, session.name, expression{end}));

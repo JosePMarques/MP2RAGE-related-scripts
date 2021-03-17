@@ -17,14 +17,16 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
 %                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
 %   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2 * TE
-%   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1Ref' fields for selecting the
-%                     corresponding MP2RAGE and B1-map images. A suffix (e.g. '_uni') must be included.
-%                     Default = struct('uni',   ['anat' filesep '*_UNIT1.nii*'], ...
+%   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1Ref' search fields for selecting the
+%                     corresponding MP2RAGE images in the sub-directory. A suffix needs to be included in the
+%                     uni-expression (e.g. '_UNIT1'). The B1map/Ref field must select 1 image for correction
+%                     of the MP2RAGE images. The 'B1Ref' field is only used if Realign==true (see further below)
+%                     Default = struct('uni',   ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
 %                                      'inv1',  ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
 %                                      'inv2',  ['anat' filesep '*_inv-2*_MP2RAGE.nii*'], ...
 %                                      'B1map', ['fmap' filesep '*_acq-famp*_TB1*.nii*'], ...
 %                                      'B1Ref', ['fmap' filesep '*_acq-anat*_TB1*.nii*']);
-%                     The 'B1Ref' field is only needed if Realign==true (see below)
+%                     NB: Paths before '::' are prepended to the sub-directories
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
@@ -42,7 +44,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   >> bids_T1B1correct('/project/3015046.06/bids')
 %   >> bids_T1B1correct('/project/3015046.06/bids', [round(224*3/8) round(224*4/8)], 7.5e-3)
 %   >> bids_T1B1correct('/project/3015046.06/bids', round(224*4/8), [], ...
-%         struct('uni',  'anat/*_uni.nii*', ...
+%         struct('uni',  'derivatives/SIEMENS::anat/*_uni.nii*', ...
 %                'inv1', 'anat/*_inv1.nii*', ...
 %                'inv2', 'anat/*_inv2.nii*', ...
 %                'B1map','extra_data/*_b1.nii*'), ...
@@ -57,12 +59,18 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
-% Marcel Zwiers, 8/10/2020
+% Marcel Zwiers, 17/03/2021
 
 
 %% Parse the input arguments
+if nargin<2
+    NrShots = [];
+end
+if nargin<3
+    EchoSpacing = [];
+end
 if nargin<4 || isempty(Expression)
-    Expression = struct('uni',   ['anat' filesep '*_UNIT1.nii*'], ...
+    Expression = struct('uni',   ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
                         'inv1',  ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
                         'inv2',  ['anat' filesep '*_inv-2*_MP2RAGE.nii*'], ...
                         'B1map', ['fmap' filesep '*_acq-famp*_TB1*.nii*'], ...
@@ -86,8 +94,10 @@ end
 if nargin<10 || isempty(Correct)
     Correct = true;
 end
-assert(contains(Expression.uni, '_'), ...
-    'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', Expression.uni)
+
+assert(contains(Expression.uni, '_'), 'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', Expression.uni)
+suffix = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+suffix = suffix{end};
 
 
 %% Get all the MP2RAGE and B1map images
@@ -103,45 +113,50 @@ for subject = subjects'
     
     for session = sessions'
         
-        n = numel(MP2RAGE) + 1;
-        fprintf('%s (%i):\n', fullfile(session.folder, session.name), n)
+        fprintf('Indexing (%i): %s\n', numel(MP2RAGE) + 1, fullfile(session.folder, session.name))
         
-        uni      = dir(fullfile(session.folder, session.name, Expression.uni));
-        inv1     = dir(fullfile(session.folder, session.name, Expression.inv1));
-        inv2     = dir(fullfile(session.folder, session.name, Expression.inv2));
-        B1map{n} = dir(fullfile(session.folder, session.name, Expression.B1map));
-        B1Ref{n} = dir(fullfile(session.folder, session.name, Expression.B1Ref));
-        if isempty(uni) || isempty(B1map{n})
+        uni    = getdata(session, Expression.uni);
+        inv1   = getdata(session, Expression.inv1);
+        inv2   = getdata(session, Expression.inv2);
+        B1map_ = getdata(session, Expression.B1map);
+        B1Ref_ = getdata(session, Expression.B1Ref);
+        if isempty(uni) || isempty(B1map_)
             fprintf('Could not find UNI & B1-map images with search terms:\n%s\n%s\n\n', fullfile(subject.name, session.name, Expression.uni), fullfile(subject.name, session.name, Expression.B1map))
             continue
-        elseif Realign && isempty(B1Ref{n})
+        elseif Realign && isempty(B1Ref_)
             fprintf('Could not find B1-reference image for realignment with search term:\n%s\n\n', fullfile(subject.name, session.name, Expression.B1Ref))
             continue
-        elseif numel(uni) > 1
-            warning('Too many UNI-images found in:\n%s\n%s\n', uni.folder, sprintf('%s\n', uni.name))
+        elseif ~isequal(numel(uni), numel(inv1), numel(inv2))
+            warning('Unequal number of UNI (%i), INV1 (%i) & INV2 (%i) images found in:\n%s\n', numel(uni), numel(inv1), numel(inv2), fullfile(subject.name, session.name, expression.uni))
             continue
-        elseif numel(B1map{n}) > 1
-            warning('Too many B1map-images found in:\n%s\n%s\n', B1map{n}.folder, sprintf('%s\n', B1map{n}.name))
+        elseif numel(B1map_) ~= 1
+            warning('Ambiguous (%i instead of 1) B1map-images found using "%s"\n', numel(B1map_), Expression.B1map)
+            disp(char(B1map_.name))
             continue
-        elseif Realign && numel(B1Ref{n}) > 1
-            warning('Too many B1map magnitude-images found in:\n%s\n%s\n', B1Ref{n}.folder, sprintf('%s\n', B1Ref{n}.name))
+        elseif Realign && numel(B1Ref_) ~= 1
+            warning('Ambiguous (%i instead of 1) B1Ref-images found using "%s"\n', numel(B1Ref_), Expression.B1Ref)
+            disp(char(B1Ref_.name))
             continue
         end
         
-        MP2RAGE{n}   = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots);
+        for n = 1:numel(uni)
+            
+            index          = numel(MP2RAGE) + 1;
+            MP2RAGE{index} = PopulateMP2RAGEStructure(uni(n), inv1(n), inv2(n), EchoSpacing, NrShots);
+            B1map{index}   = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
+            B1Ref{index}   = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images            
+            if strcmp(Target, 'derivatives')
+                T1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_T1map'));   % Corrected T1-map
+            else
+                T1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_T1map'));   % Corrected T1-map
+            end
 
-        suffix       = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
-        if strcmp(Target, 'derivatives')
-            T1mapname{n} = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', strrep(uni.name, ['_' suffix{end}], '_T1map'));   % Corrected T1-map
-        else
-            T1mapname{n} = fullfile(session.folder, session.name, Target, strrep(uni.name, ['_' suffix{end}], '_T1map'));   % Corrected T1-map
+            fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, T1mapname{index})
+
+            % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
+            plotMP2RAGEproperties(MP2RAGE{index}, HG)
+
         end
-        
-        fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni.name, inv1.name, inv2.name, B1map{n}.name, T1mapname{n})
-        
-        % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
-        plotMP2RAGEproperties(MP2RAGE{n}, HG)
-    
     end
     
 end
@@ -150,14 +165,14 @@ end
 %% Process all the images
 for n = 1:numel(MP2RAGE)
     
-    fprintf('\n--> Processing: %s (%i/%i\n)', MP2RAGE{n}.filenameUNI, n, numel(MP2RAGE))
+    fprintf('\n--> Processing (%i/%i): %s\n', n, numel(MP2RAGE), MP2RAGE{n}.filenameUNI)
     
     % Realign and reslice the B1-map to the INV2 image
     if Realign
         B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
-        B1Ref     = spm_vol_gz(fullfile(B1Ref{n}.folder, B1Ref{n}.name));
+        B1Ref_    = spm_vol_gz(fullfile(B1Ref{n}.folder, B1Ref{n}.name));
         INV2Ref   = spm_vol_gz(MP2RAGE{n}.filenameINV2);
-        x         = spm_coreg(INV2Ref, B1Ref);                  % Coregister B1Ref with INV2Ref
+        x         = spm_coreg(INV2Ref, B1Ref_);                 % Coregister B1Ref with INV2Ref
         R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
         B1img.img = NaN(INV2Ref.dim);
         for z = 1:INV2Ref.dim(3)                                % Reslice the B1Src volume at the coordinates of each coregistered transverse slice of INV2Ref
@@ -173,6 +188,8 @@ for n = 1:numel(MP2RAGE)
     [T1map, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
     
     % Save the T1-map image
+    [T1path, T1name] = myfileparts(T1mapname{n});
+    [~,~] = mkdir(T1path);
     save_untouch_nii(T1map, T1mapname{n})
     
     % Read & enrich the UNI json-file and write it as a T1map json-file
@@ -186,7 +203,6 @@ for n = 1:numel(MP2RAGE)
     jsonT1map.InversionTime       = MP2RAGE{n}.TIs;
     jsonT1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
     
-    [T1path, T1name] = myfileparts(T1mapname{n});
     fid = fopen(fullfile(T1path, [T1name '.json']), 'w');
     fprintf(fid, '%s', jsonencode(jsonT1map));
     fclose(fid);
@@ -290,3 +306,14 @@ function [pathname, filename, ext] = myfileparts(filename)
 [pathname, filename, ext2] = fileparts(filename);
 [~, filename, ext1]        = fileparts(filename);
 ext                        = [ext1 ext2];
+
+
+function data = getdata(session, expression)
+
+expression = split(expression, '::');
+if numel(expression)>1
+    bidsroot       = split(session.folder, 'sub-');
+    session.folder = fullfile(bidsroot{1}, expression{1}, ['sub-' bidsroot{2}]);
+end
+
+data = dir(fullfile(session.folder, session.name, expression{end}));
