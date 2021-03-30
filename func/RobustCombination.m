@@ -174,6 +174,7 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     jsonUNIfile        = fullfile(UNIpath, [UNIname '.json']);
     if isfile(jsonUNIfile)
         jsonT1                     = jsondecode(fileread(jsonUNIfile));
+        jsonT1.BasedOn             = {MP2RAGE.filenameUNI, MP2RAGE.filenameINV1, MP2RAGE.filenameINV2};
         jsonT1.SeriesDescription   = [jsonT1.ProtocolName '_MP2RAGE_denoised_background'];
         jsonT1.NoiseRegularization = multiplyingFactor;
         
