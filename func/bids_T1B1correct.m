@@ -26,8 +26,10 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                                      'inv2',  ['anat' filesep '*_inv-2*_MP2RAGE.nii*'], ...
 %                                      'B1map', ['fmap' filesep '*_acq-famp*_TB1*.nii*'], ...
 %                                      'B1Ref', ['fmap' filesep '*_acq-anat*_TB1*.nii*']);
-%                     NB: Paths before '::' are prepended to the sub-folders, e.g. 'derivatives/SIEMENS::anat/*_UNIT1.nii*'
-%                     will perform a search for UNIT1 images in 'bidsroot/derivatives/SIEMENS/sub-01/ses-01/anat/'
+%                     NB: Paths before '::' are prepended to the sub-directories, such that
+%                     'derivatives/SIEMENS::anat/*_UNIT1.nii*' will perform a search for UNIT1 images in
+%                     e.g. 'bidsroot/derivatives/SIEMENS/sub-01/ses-01/anat/' and 'anat/*_inv-1*_MP2RAGE.nii*'
+%                     will search for MP2RAGE images in e.g. 'bidsroot/sub-01/ses-01/anat/'
 %   subjects        - Directory list of BIDS subjects that are processed. All subjects are processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
