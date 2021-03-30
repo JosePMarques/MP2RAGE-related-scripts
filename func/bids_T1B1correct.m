@@ -16,17 +16,18 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   BIDSroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
 %                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
-%   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2 * TE
+%   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2*TE
 %   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1Ref' search fields for selecting the
 %                     corresponding MP2RAGE images in the sub-directory. A suffix needs to be included in the
-%                     uni-expression (e.g. '_UNIT1'). The B1map/Ref field must select 1 image for correction
+%                     uni-expression (e.g. '_UNIT1'). The B1map/Ref fields must each select 1 image for correction
 %                     of the MP2RAGE images. The 'B1Ref' field is only used if Realign==true (see further below)
 %                     Default = struct('uni',   ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
 %                                      'inv1',  ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
 %                                      'inv2',  ['anat' filesep '*_inv-2*_MP2RAGE.nii*'], ...
 %                                      'B1map', ['fmap' filesep '*_acq-famp*_TB1*.nii*'], ...
 %                                      'B1Ref', ['fmap' filesep '*_acq-anat*_TB1*.nii*']);
-%                     NB: Paths before '::' are prepended to the sub-directories
+%                     NB: Paths before '::' are prepended to the sub-folders, e.g. 'derivatives/SIEMENS::anat/*_UNIT1.nii*'
+%                     will perform a search for UNIT1 images in 'derivatives/SIEMENS/sub-01/ses-01/anat/'
 %   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
 %                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
@@ -189,7 +190,7 @@ for n = 1:numel(MP2RAGE)
     
     % Save the T1-map image
     [T1path, T1name] = myfileparts(T1mapname{n});
-    [~,~] = mkdir(T1path);
+    [~,~]            = mkdir(T1path);
     save_untouch_nii(T1map, T1mapname{n})
     
     % Read & enrich the UNI json-file and write it as a T1map json-file

@@ -16,9 +16,10 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %                     Default = struct('uni',  ['derivatives' filesep 'SIEMENS::anat' filesep '*_UNIT1.nii*'], ...
 %                                      'inv1', ['anat' filesep '*_inv-1*_MP2RAGE.nii*'], ...
 %                                      'inv2', ['anat' filesep '*_inv-2*_MP2RAGE.nii*']);
-%                     NB: Paths before '::' are prepended to the sub-directories
-%   subjects        - Directory list of BIDS subjects that are processed. All are subjects processed
-%                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
+%                     NB: Paths before '::' are prepended to the sub-directories, e.g. 'derivatives/SIEMENS::anat/*_UNIT1.nii*'
+%                     will perform a search for UNIT1 images in 'derivatives/SIEMENS/sub-01/ses-01/anat/'
+%   subjects        - Directory list of BIDS subjects that are processed. All subjects processed if
+%                     left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
 %   target          - The target sub-directory in which the combined image is saved, e.g. 'anat'
 %                     (default = 'derivatives')
 %
