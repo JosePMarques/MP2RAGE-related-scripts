@@ -140,7 +140,7 @@ for n = 1:numel(MP2RAGE)
         
         scansfile = fullfile(bidsroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
         if isfile(scansfile)
-            scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
+            scanstable                 = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true, 'DatetimeType','text');
             [UNIpath, UNIname, UNIext] = fileparts(MP2RAGE(n).filenameUNI);
             [~, source]                = fileparts(UNIpath);            
             UNIscan                    = [source '/' UNIname UNIext];

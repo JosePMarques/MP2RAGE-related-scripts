@@ -231,7 +231,7 @@ for n = 1:numel(MP2RAGE)
     end
     scansfile = fullfile(BIDSroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
     if isfile(scansfile)
-        scanstable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true);
+        scanstable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true, 'DatetimeType','text');
         [~, source] = fileparts(UNIpath);
         UNIscan     = [source '/' UNIname UNIext];
         if any(contains(scanstable.Properties.RowNames, UNIscan))
