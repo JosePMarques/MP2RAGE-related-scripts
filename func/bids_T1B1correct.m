@@ -11,12 +11,20 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %
 %   Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence -
 %   Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
+%
+%   Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P., Gruetter, R., 2010.
+%   MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field.
+%   NeuroImage 49, doi.org/10.1016/j.neuroimage.2009.10.002
 % 
 % INPUT
 %   BIDSroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
-%                     The json file doesn't usually reliably contain this information. Default = "ReconMatrixPE"
-%   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file. Default = 2*TE
+%                     The json file doesn't usually / reliably contain this information, but it should be available
+%                     from the scan protocol (adviced). Default: NrShots = nr of slices in the z-dimension.
+%                     NrShots has previously also been referred to as `NZslices`.
+%   EchoSpacing     - The RepetitionTimeExcitation value in secs that is not always given in the json file, but it
+%                     should be available from the scan protocol (adviced). Default: EchoSpacing = 2*TE
+%                     EchoSpacing has previously also been referred to as `TRFLASH`.
 %   Expression      - A structure with 'uni', 'inv1', 'inv2', 'B1map' and 'B1Ref' search fields for selecting the
 %                     corresponding MP2RAGE images in the sub-directory. A suffix needs to be included in the
 %                     uni-expression (e.g. '_UNIT1'). The B1map/Ref fields must each select 1 image for correction
@@ -45,7 +53,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
-%   >> bids_T1B1correct('/project/3015046.06/bids', [round(224*3/8) round(224*4/8)], 7.5e-3)
+%   >> bids_T1B1correct('/project/3015046.06/bids', [round(224*3/8) round(224*4/8)], 7.5e-3)    % NB: NrSHots and EchoSpacing are typically available from the scan protocol and are adviced to be used
 %   >> bids_T1B1correct('/project/3015046.06/bids', round(224*4/8), [], ...
 %         struct('uni',  'derivatives/SIEMENS::anat/*_uni.nii*', ...
 %                'inv1', 'anat/*_inv1.nii*', ...
@@ -118,11 +126,11 @@ for subject = subjects'
         
         fprintf('Indexing (%i): %s\n', numel(MP2RAGE) + 1, fullfile(session.folder, session.name))
         
-        uni    = getdata(session, Expression.uni);
-        inv1   = getdata(session, Expression.inv1);
-        inv2   = getdata(session, Expression.inv2);
-        B1map_ = getdata(session, Expression.B1map);
-        B1Ref_ = getdata(session, Expression.B1Ref);
+        uni    = getfiles(session, Expression.uni);
+        inv1   = getfiles(session, Expression.inv1);
+        inv2   = getfiles(session, Expression.inv2);
+        B1map_ = getfiles(session, Expression.B1map);
+        B1Ref_ = getfiles(session, Expression.B1Ref);
         if isempty(uni) || isempty(B1map_)
             fprintf('Could not find UNI & B1-map images with search terms "%s" and "%s"\n', Expression.uni, Expression.B1map)
             continue
@@ -144,10 +152,10 @@ for subject = subjects'
         
         for n = 1:numel(uni)
             
-            index          = numel(MP2RAGE) + 1;
-            MP2RAGE{index} = PopulateMP2RAGEStructure(uni(n), inv1(n), inv2(n), EchoSpacing, NrShots);
-            B1map{index}   = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
-            B1Ref{index}   = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images            
+            index        = numel(MP2RAGE) + 1;
+            [MP2RAGE{index}, EchoSpacing, NrShots] = PopulateMP2RAGEStructure(uni(n), inv1(n), inv2(n), EchoSpacing, NrShots);
+            B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
+            B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images            
             if strcmp(Target, 'derivatives')
                 T1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_T1map'));   % Corrected T1-map
             else
@@ -249,7 +257,7 @@ for n = 1:numel(MP2RAGE)
 end
 
 
-function MP2RAGEstructure = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots)
+function [MP2RAGEstructure, EchoSpacing, NrShots] = PopulateMP2RAGEStructure(uni, inv1, inv2, EchoSpacing, NrShots)
 %
 %   uni         - The directory item of the UNI file
 %   inv1        - The directory item of the INV1 file
@@ -270,20 +278,20 @@ MP2RAGEstructure.filenameINV2 = fullfile(inv2.folder, inv2.name);
 
 if nargin<4 || isempty(EchoSpacing)
     if isfield(jsonINV1, 'RepetitionTimeExcitation')
-        MP2RAGEstructure.TRFLASH = jsonINV1.RepetitionTimeExcitation;           % TR of the GRE readout in seconds
+        EchoSpacing = jsonINV1.RepetitionTimeExcitation;                         % TR of the GRE readout in seconds
     else
-        MP2RAGEstructure.TRFLASH = jsonINV1.EchoTime * 2;                       % 2 X EchoTime can be used as a surrogate
+        EchoSpacing = jsonINV1.EchoTime * 2;                                     % 2 X EchoTime can be used as a surrogate
     end
-else
-    MP2RAGEstructure.TRFLASH = EchoSpacing;
+    disp(['Extracted EchoSpacing: ' num2str(EchoSpacing)])
 end
+MP2RAGEstructure.TRFLASH = EchoSpacing;
 
 if nargin<5 || isempty(NrShots)
-    assert(isfield(jsonINV1,'ReconMatrixPE'), 'The json-file does not contain "NrSHots"-info (i.e. "ReconMatrixPE") belonging to:\n%s', MP2RAGEstructure.filenameINV1)
-    MP2RAGEstructure.NZslices = jsonINV1.ReconMatrixPE;     % Slices Per Slab * [PartialFourierInSlice-0.5 0.5] OR Base Resolution * [PartialFourierInPE-0.5 0.5]/iPATpe + [RefLines/2 RefLines/2]*(1-1/iPATpe )
-else
-    MP2RAGEstructure.NZslices = NrShots;
+    UNIimg  = load_untouch_nii(MP2RAGEstructure.filenameUNI);                    % A bit overkill to load the whole image but loading just the header is only available as an internal function :-(
+    NrShots = size(UNIimg.img, 3);
+    disp(['Extracted NrShots: ' num2str(NrShots)])
 end
+MP2RAGEstructure.NZslices = NrShots;
 
 
 function Vol = spm_vol_gz(FileName)
@@ -311,7 +319,9 @@ function [pathname, filename, ext] = myfileparts(filename)
 ext                        = [ext1 ext2];
 
 
-function data = getdata(session, expression)
+function data = getfiles(session, expression)
+%
+% Uses dir(expression) to return the matching files in the session
 
 expression = split(expression, '::');
 if numel(expression)>1
