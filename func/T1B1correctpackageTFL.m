@@ -40,7 +40,7 @@ function [T1temp, MP2RAGEcorrected] = T1B1correctpackageTFL(B1img, MP2RAGEimg, T
 %
 % Please cite:
 %  Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
-%  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
+%  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271?1281. doi:10.1016/j.neuroimage.2009.10.002
 
 
 %% Parse the input arguments
@@ -132,14 +132,14 @@ end
 
 %% make the matrix MP2RAGEMatrix into T1_matrix(B1, ratio)
 
-MP2RAGE_vector = linspace(-0.5, 0.5, 40);
+MP2RAGE_vector = linspace(-0.5, 0.5, 100);
 
 k = 0;
 for b1val = B1_vector
     
     k = k+1;
     try
-        T1matrix(k,:) = interp1(MP2RAGEmatrix(k,:), T1_vector, MP2RAGE_vector, 'pchirp'); 
+        T1matrix(k,:) = interp1(MP2RAGEmatrix(k,:), T1_vector, MP2RAGE_vector, 'pchip'); 
     catch
         temp              = MP2RAGEmatrix(k,:); 
         temp(isnan(temp)) = linspace(-0.5-eps, -1, sum(isnan(temp(:))));
