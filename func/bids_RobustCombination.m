@@ -62,7 +62,7 @@ if nargin<5 || isempty(target)
 end
 
 assert(contains(expression.uni, '_'), 'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', expression.uni)
-suffix = split(expression.uni, '_');                                   % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+suffix = split(expression.uni, '_');                % ASSUMPTION: The MP2RAGE image is stored with a unique suffix
 suffix = suffix{end};
 
 
@@ -98,7 +98,7 @@ for subject = subjects'
             MP2RAGE(index).filenameINV2 = fullfile(inv2(n).folder, inv2(n).name);                  % Inversion Time 2 MP2RAGE T1w image
             T1name                      = strrep(uni(n).name, ['_' strtok(suffix,'.')], '_T1w');   % Guess the suffix from the search expression
             if strcmp(target, 'derivatives')
-                MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
+                MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE_scripts', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
             else
                 MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                    % T1w image without background noise;
             end

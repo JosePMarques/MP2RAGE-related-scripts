@@ -1,6 +1,7 @@
-function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, Target, Correct)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, FWHM, Target, Correct)
 
-% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign], [Target], [Correct])
+% FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign],
+%    [FWHM], [Target], [Correct])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"
@@ -47,9 +48,12 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   Realign         - Uses the magnitude image of the B1-scan to realign and reslice the B1-map to the space of the
 %                     MP2RAGE image if Realign==true (default). Otherwise it is assumed this is already the case
 %                     and this processing step is skipped. NB: Realign requires the SPM12 software on your Matlab-path
+%   FWHM            - FWHM used to gaussian smooth the B1 map and ensure that skull regions are populated with valid
+%                     B1 values. Default FWHM is 12. Pass FWHM = 0 if no smoothing is desired
 %   Target          - The target sub-directory in which the corrected B1-map is saved, e.g. 'anat'
 %                     (default = 'derivatives')
-%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in BIDSroot/derivatives/MP2RAGE
+%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in:
+%                     BIDSroot/derivatives/MP2RAGE_scripts
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
@@ -70,7 +74,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
-% Marcel Zwiers, 17/03/2021
+% Marcel Zwiers, 9/02/2023
 
 
 %% Parse the input arguments
@@ -99,15 +103,18 @@ end
 if nargin<8 || isempty(Realign)
     Realign = true;
 end
-if nargin<9 || isempty(Target)
+if nargin<9 || isempty(FWHM)
+    FWHM = 12;
+end
+if nargin<10 || isempty(Target)
     Target = 'derivatives';
 end
-if nargin<10 || isempty(Correct)
+if nargin<11 || isempty(Correct)
     Correct = true;
 end
 
 assert(contains(Expression.uni, '_'), 'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', Expression.uni)
-suffix = split(strtok(Expression.uni,'.'), '_');              % ASSUMPTION ALERT: The MP2RAGE image is stored with a (custom) suffix
+suffix = split(strtok(Expression.uni,'.'), '_');        % ASSUMPTION: The MP2RAGE image is stored with a unique suffix
 suffix = suffix{end};
 
 
@@ -157,12 +164,12 @@ for subject = subjects'
             B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
             B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images            
             if strcmp(Target, 'derivatives')
-                T1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_T1map'));   % Corrected T1-map
+                R1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE_scripts', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             else
-                T1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_T1map'));   % Corrected T1-map
+                R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             end
 
-            fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, T1mapname{index})
+            fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, R1mapname{index})
 
             % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
             plotMP2RAGEproperties(MP2RAGE{index}, HG)
@@ -178,10 +185,26 @@ for n = 1:numel(MP2RAGE)
     
     fprintf('\n--> Processing (%i/%i): %s\n', n, numel(MP2RAGE), MP2RAGE{n}.filenameUNI)
     
-    % Realign and reslice the B1-map to the INV2 image
+    % Load the headers & data
+    B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
+    B1Src_Vol = spm_read_vols(B1Src);
+    if Realign || FWHM ~= 0
+        B1Ref_ = spm_vol_gz(fullfile(B1Ref{n}.folder, B1Ref{n}.name));
+    end
+
+    % Smooth the B1-map in order to avoid influence of salt & pepper border noise
+    if FWHM ~= 0
+        B1Ref_Vol   = spm_read_vols(B1Ref_);
+        PixDim      = spm_imatrix(B1Src.mat);
+        Pre_Smooth  = double(B1Ref_Vol).^1 .* exp(1i*double(B1Src_Vol) / B1Scaling);
+        Post_Smooth = smooth3D(Pre_Smooth, FWHM, abs(PixDim(7:9)));
+        B1Src_Vol   = angle(Post_Smooth) * B1Scaling;
+        B1Src.fname = spm_file(B1Src.fname, 'suffix', '_smooth');
+        B1Src       = spm_write_vol(B1Src, B1Src_Vol);
+    end
+
+    % Realign & reslice the B1 reference image with the INV2 image
     if Realign
-        B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
-        B1Ref_    = spm_vol_gz(fullfile(B1Ref{n}.folder, B1Ref{n}.name));
         INV2Ref   = spm_vol_gz(MP2RAGE{n}.filenameINV2);
         x         = spm_coreg(INV2Ref, B1Ref_);                 % Coregister B1Ref with INV2Ref
         R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
@@ -190,70 +213,91 @@ for n = 1:numel(MP2RAGE)
             B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2Ref.dim(1:2), 1);
         end
     else
-        B1img = load_untouch_nii(fullfile(B1map{n}.folder, B1map{n}.name));
+        B1img.img = B1Src_Vol;
+    end
+
+    % Clean-up the temporarily unzipped/smoothed images
+    for TempVol = [B1Src, B1Ref_, INV2Ref]
+        if startsWith(TempVol.fname, tempdir)
+            delete(TempVol.fname)
+            if endsWith(TempVol.fname, '_smooth.nii')
+                delete(strrep(TempVol.fname, '_smooth.nii', '.nii'))
+            end
+        end
     end
     
     % Perform the unbiased B1-map estimation and the UNI image correction
-    B1img.img            = double(B1img.img) / B1Scaling;
-    MP2RAGEimg           = load_untouch_nii(MP2RAGE{n}.filenameUNI);
-    [T1map, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
+    B1img.img        = double(B1img.img) / B1Scaling;
+    MP2RAGEimg       = load_untouch_nii(MP2RAGE{n}.filenameUNI);
+    [~, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
     
-    % Save the T1-map image
-    [T1path, T1name] = myfileparts(T1mapname{n});
-    [~,~]            = mkdir(T1path);
-    save_untouch_nii(T1map, T1mapname{n})
+    % Compute the M0- and R1-map
+    MP2RAGEINV2img     = load_untouch_nii(MP2RAGE{n}.filenameINV2);
+    [~, M0map , R1map] = T1M0estimateMP2RAGE(MP2RAGECorr, MP2RAGEINV2img, MP2RAGE{n}, InvEff);
+
+    % Save the R1-map image
+    [R1path, R1name] = myfileparts(R1mapname{n});
+    [~,~]            = mkdir(R1path);
+    save_untouch_nii(R1map, R1mapname{n})
     
-    % Read & enrich the UNI json-file and write it as a T1map json-file
+    % Read & enrich the UNI json-file and write it as a R1-map json-file
     [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
-    jsonT1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
-    jsonT1map.BasedOn             = {MP2RAGE{n}.filenameUNI, MP2RAGE{n}.filenameINV1, MP2RAGE{n}.filenameINV2, fullfile(B1map{n}.folder, B1map{n}.name), fullfile(B1Ref{n}.folder, B1Ref{n}.name)};
-    jsonT1map.SeriesDescription   = [jsonT1map.ProtocolName '_B1_bias_corrected'];
-    jsonT1map.InversionEfficiency = InvEff;
-    jsonT1map.NumberShots         = MP2RAGE{n}.NZslices;
-    jsonT1map.EchoSpacing         = MP2RAGE{n}.TRFLASH;
-    jsonT1map.InversionTime       = MP2RAGE{n}.TIs;
-    jsonT1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
-    
-    fid = fopen(fullfile(T1path, [T1name '.json']), 'w');
-    fprintf(fid, '%s', jsonencode(jsonT1map));
+    jsonR1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
+    jsonR1map.BasedOn             = {MP2RAGE{n}.filenameUNI, MP2RAGE{n}.filenameINV1, MP2RAGE{n}.filenameINV2, fullfile(B1map{n}.folder, B1map{n}.name), fullfile(B1Ref{n}.folder, B1Ref{n}.name)};
+    jsonR1map.SeriesDescription   = [jsonR1map.ProtocolName '_B1_bias_corrected'];
+    jsonR1map.InversionEfficiency = InvEff;
+    jsonR1map.NumberShots         = MP2RAGE{n}.NZslices;
+    jsonR1map.EchoSpacing         = MP2RAGE{n}.TRFLASH;
+    jsonR1map.InversionTime       = MP2RAGE{n}.TIs;
+    jsonR1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
+    fid = fopen(fullfile(R1path, [R1name '.json']), 'w');
+    fprintf(fid, '%s', jsonencode(jsonR1map));
+    fclose(fid);
+
+    % Save the M0-map & json file
+    Derivatives = strrep(UNIpath, fullfile(BIDSroot,filesep), fullfile(BIDSroot,'derivatives','MP2RAGE_scripts',filesep));
+    [~,~]       = mkdir(Derivatives);
+    M0name      = strrep(UNIname, ['_' suffix], '_M0map');
+    save_untouch_nii(M0map, fullfile(Derivatives, [M0name UNIext]))
+    fid = fopen(fullfile(Derivatives, [M0name '.json']), 'w');
+    fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
 
     % Save the corrected UNI image & json file
     if Correct
-        MP2RAGECorrpath = strrep(UNIpath, fullfile(BIDSroot,filesep), fullfile(BIDSroot,'derivatives','MP2RAGE',filesep));
-        MP2RAGECorrname = [UNIname 'B1corr'];
-        [~,~]           = mkdir(MP2RAGECorrpath);
-        save_untouch_nii(MP2RAGECorr, fullfile(MP2RAGECorrpath, [MP2RAGECorrname UNIext]))
-        
-        fid = fopen(fullfile(MP2RAGECorrpath, [MP2RAGECorrname '.json']), 'w');
-        fprintf(fid, '%s', jsonencode(jsonT1map));
+        Corrname = strrep(UNIname, ['_' suffix], '_desc-B1corr_UNIT1');
+        save_untouch_nii(MP2RAGECorr, fullfile(Derivatives, [Corrname UNIext]))       
+        fid = fopen(fullfile(Derivatives, [Corrname '.json']), 'w');
+        fprintf(fid, '%s', jsonencode(jsonR1map));
         fclose(fid);
     end
-    
+
     % Adapt the scans.tsv file
-    subses = split(UNIname, '_');
-    if contains(UNIname, '_ses-')
-        subses = subses(1:2);
-    else
-        subses = subses(1);
-    end
-    scansfile = fullfile(BIDSroot, subses{:}, sprintf('%sscans.tsv', sprintf('%s_', subses{:})));
-    if isfile(scansfile)
-        scanstable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true, 'DatetimeType','text');
-        [~, source] = fileparts(UNIpath);
-        UNIscan     = [source '/' UNIname UNIext];
-        if any(contains(scanstable.Properties.RowNames, UNIscan))
-            UNIdata = scanstable(UNIscan,:).Variables;
+    if ~strcmp(Target, 'derivatives')
+        SubSes = split(UNIname, '_');
+        if contains(UNIname, '_ses-')
+            SubSes = SubSes(1:2);
         else
-            UNIdata = repmat({'n/a'}, 1, size(scanstable.Variables, 2));
+            SubSes = SubSes(1);
         end
-        [~, T1mapfname, T1mapext] = myfileparts(T1mapname{n});
-        T1mapscan                 = ['anat/' T1mapfname T1mapext];
-        scanstable(T1mapscan, :)  = UNIdata;
-        fprintf('Updating %s:\n--> %s%s\n\n', scansfile, T1mapscan, sprintf('\t%s',UNIdata{:}))
-        writetable(scanstable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
+        scansfile = fullfile(BIDSroot, SubSes{:}, sprintf('%sscans.tsv', sprintf('%s_', SubSes{:})));
+        if isfile(scansfile)
+            ScansTable  = readtable(scansfile, 'FileType','text', 'ReadRowNames',true, 'Delimiter','\t', 'PreserveVariableNames',true, 'DatetimeType','text');
+            [~, Source] = fileparts(UNIpath);
+            UNIscan     = [Source '/' UNIname UNIext];
+            if any(contains(ScansTable.Properties.RowNames, UNIscan))
+                UNIdata = ScansTable(UNIscan,:).Variables;
+            else
+                UNIdata = repmat({'n/a'}, 1, size(ScansTable.Variables, 2));
+            end
+            [~, R1mapfname, R1mapext] = myfileparts(R1mapname{n});
+            R1mapscan                 = ['anat/' R1mapfname R1mapext];
+            ScansTable(R1mapscan, :)  = UNIdata;
+            fprintf('Updating %s:\n--> %s%s\n\n', scansfile, R1mapscan, sprintf('\t%s',UNIdata{:}))
+            writetable(ScansTable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
+        end
     end
-    
+
 end
 
 
