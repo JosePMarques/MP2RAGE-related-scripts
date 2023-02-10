@@ -39,8 +39,8 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                     'derivatives/SIEMENS::anat/*_UNIT1.nii*' will perform a search for UNIT1 images in
 %                     e.g. 'bidsroot/derivatives/SIEMENS/sub-01/ses-01/anat/' and 'anat/*_inv-1*_MP2RAGE.nii*'
 %                     will search for MP2RAGE images in e.g. 'bidsroot/sub-01/ses-01/anat/'
-%   subjects        - Directory list of BIDS subjects that are processed. All subjects are processed
-%                     if left empty (default), i.e. then subjects = dir(fullfile(bidsroot, 'sub-*'))
+%   subjects        - A wildcard expression to select the BIDS subjects that are processed. All subjects are
+%                     processed if left empty (default), i.e. then subjects = 'sub-*'
 %   InvEff          - The inversion efficiency of the adiabatic inversion. Ideally it should be 1 but in the first
 %                     implementation of the MP2RAGE it was measured to be ~0.96. Default = 0.96
 %   B1Scaling       - Relative scaling factor of the B1-map, i.e. the nr for which the B1-map the nominal
@@ -70,7 +70,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                'inv2', 'extra_data/*_acq-Prot1_*_INV2.nii.gz', ...
 %                'B1map','fmap/*_TB1map.nii.gz', ...
 %                'B1Ref','fmap/*_TB1TFL.nii.gz'), ...
-%         dir('/project/3015046.06/bids/sub-00*'));
+%         'sub-00*');
 %
 % See also: DemoForR1Correction, T1B1correctpackageTFL, T1B1correctpackage
 %
@@ -92,7 +92,10 @@ if nargin<4 || isempty(Expression)
                         'B1Ref', ['derivatives/SIEMENS::fmap' filesep '*_acq-anat*_TB1*.nii*']);
 end
 if nargin<5 || isempty(subjects)
-    subjects = dir(fullfile(BIDSroot, 'sub-*'));
+    subjects = 'sub-*';
+end
+if ~contains(subjects, '*')
+    subjects = [subjects '*'];
 end
 if nargin<6 || isempty(InvEff)
     InvEff = 0.96;
@@ -121,9 +124,9 @@ suffix = suffix{end};
 %% Get all the MP2RAGE and B1map images
 MP2RAGE = {};
 HG = figure('Name', 'bids_T1B1correct');
-for subject = subjects'
+for subject = dir(fullfile(BIDSroot, subjects))'
 
-    assert(startsWith(subject.name, 'sub-'))
+    assert(startsWith(subject.name, 'sub-'), ['Your "' subjects '" subjects input argument did not select BIDS subject directories. See the help for usage'])
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
     if isempty(sessions)
         sessions(1).folder = fullfile(subject.folder, subject.name);
