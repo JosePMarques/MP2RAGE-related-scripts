@@ -123,7 +123,7 @@ MP2RAGE = {};
 HG = figure('Name', 'bids_T1B1correct');
 for subject = subjects'
 
-    assert(startsWith(subject.name), 'sub-')
+    assert(startsWith(subject.name, 'sub-'))
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
     if isempty(sessions)
         sessions(1).folder = fullfile(subject.folder, subject.name);
