@@ -260,7 +260,7 @@ for n = 1:numel(MP2RAGE)
 
     % Save the M0-map & json file
     M0Hdr       = B1Src;
-    M0Hdr.fname = strrep(R1mapname{n}, '_R1map', '_M0map');
+    M0Hdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_M0map.nii');
     spm_write_vol_gz(M0Hdr, M0map)
     fid = fopen(spm_file(spm_file(M0Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
@@ -269,7 +269,7 @@ for n = 1:numel(MP2RAGE)
     % Save the corrected UNI image & json file
     if Correct
         CorrHdr       = B1Src;
-        CorrHdr.fname = strrep(R1mapname{n}, '_R1map', '_desc-B1corr_UNIT1');
+        CorrHdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_desc-B1corr_UNIT1.nii');
         spm_write_vol_gz(CorrHdr, MP2RAGECorr)
         fid = fopen(spm_file(spm_file(CorrHdr.fname,'ext',''), 'ext','.json'), 'w');
         fprintf(fid, '%s', jsonencode(jsonR1map));
