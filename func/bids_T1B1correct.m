@@ -335,8 +335,11 @@ end
 MP2RAGEstructure.TRFLASH = EchoSpacing;
 
 if nargin<5 || isempty(NrShots)
-    UNIimg  = load_untouch_nii(MP2RAGEstructure.filenameUNI);                    % A bit overkill to load the whole image but loading just the header is only available as an internal function :-(
-    NrShots = size(UNIimg.img, 3);
+    Hdr     = spm_vol_gz(MP2RAGEstructure.filenameUNI);
+    NrShots = Hdr.dim(3);
+    if endsWith(MP2RAGEstructure.filenameUNI, '.nii.gz')
+        delete(Hdr.fname)
+    end
     disp(['Extracted NrShots: ' num2str(NrShots)])
 end
 MP2RAGEstructure.NZslices = NrShots;
