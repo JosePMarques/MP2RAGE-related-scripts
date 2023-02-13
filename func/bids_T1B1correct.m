@@ -337,7 +337,7 @@ MP2RAGEstructure.TRFLASH = EchoSpacing;
 if nargin<5 || isempty(NrShots)
     Hdr     = spm_vol_gz(MP2RAGEstructure.filenameUNI);
     NrShots = Hdr.dim(3);
-    if endsWith(MP2RAGEstructure.filenameUNI, '.nii.gz')
+    if startsWith(Hdr.fname, tempdir)
         delete(Hdr.fname)
     end
     disp(['Extracted NrShots: ' num2str(NrShots)])
