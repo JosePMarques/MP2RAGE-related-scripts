@@ -240,9 +240,9 @@ for n = 1:numel(MP2RAGE)
     [~, M0map , R1map] = T1M0estimateMP2RAGE(MP2RAGECorr, MP2RAGEINV2img, MP2RAGE{n}, InvEff);
 
     % Save the R1-map image
-    [R1path, R1name] = myfileparts(R1mapname{n});
-    [~,~]            = mkdir(R1path);
-    save_untouch_nii(R1map, R1mapname{n})
+    R1Hdr            = B1Src;
+    R1Hdr.fname      = R1mapname{n};
+    spm_write_vol_gz(R1Hdr, R1map)
     
     % Read & enrich the UNI json-file and write it as a R1-map json-file
     [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
@@ -254,24 +254,25 @@ for n = 1:numel(MP2RAGE)
     jsonR1map.EchoSpacing         = MP2RAGE{n}.TRFLASH;
     jsonR1map.InversionTime       = MP2RAGE{n}.TIs;
     jsonR1map.FlipAngle           = MP2RAGE{n}.FlipDegrees;
-    fid = fopen(fullfile(R1path, [R1name '.json']), 'w');
+    fid = fopen(spm_file(spm_file(R1Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
 
     % Save the M0-map & json file
-    Derivatives = strrep(UNIpath, fullfile(BIDSroot,filesep), fullfile(BIDSroot,'derivatives','MP2RAGE_scripts',filesep));
-    [~,~]       = mkdir(Derivatives);
-    M0name      = strrep(UNIname, ['_' suffix], '_M0map');
-    save_untouch_nii(M0map, fullfile(Derivatives, [M0name UNIext]))
-    fid = fopen(fullfile(Derivatives, [M0name '.json']), 'w');
+    M0Hdr       = B1Src;
+    M0Hdr.fname = strrep(R1mapname{n}, '_R1map', '_M0map');
+    spm_write_vol_gz(M0Hdr, M0map)
+    fid = fopen(spm_file(spm_file(M0Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
 
     % Save the corrected UNI image & json file
     if Correct
-        Corrname = strrep(UNIname, ['_' suffix], '_desc-B1corr_UNIT1');
-        save_untouch_nii(MP2RAGECorr, fullfile(Derivatives, [Corrname UNIext]))       
-        fid = fopen(fullfile(Derivatives, [Corrname '.json']), 'w');
+        CorrHdr       = B1Src;
+        M0Hdr.fname   = strrep(R1mapname{n}, '_R1map', '_desc-B1corr_UNIT1');
+        CorrHdr.fname = fullfile(Derivatives, [Corrname UNIext]);
+        spm_write_vol_gz(CorrHdr, MP2RAGECorr)
+        fid = fopen(spm_file(spm_file(CorrHdr.fname,'ext',''), 'ext','.json'), 'w');
         fprintf(fid, '%s', jsonencode(jsonR1map));
         fclose(fid);
     end
@@ -356,6 +357,24 @@ switch Ext
 end
 
 Vol = spm_vol(FileName);
+
+
+function Vol = spm_write_vol_gz(Hdr, data)
+%
+% A wrapper around spm_write_vol that writes and zips .nii files
+
+[~, ~, Ext] = myfileparts(Hdr.fname);
+Hdr         = rmfield(Hdr, 'pinfo');
+switch Ext
+    case '.nii.gz'
+        Hdr.fname = spm_file(Hdr.fname, 'ext','');
+        Vol       = spm_write_vol(Hdr, data);
+        gzip(Hdr.fname)
+    case '.nii'
+        Vol = spm_write_vol(Hdr, data);
+    otherwise
+        error('Unknown file extenstion %s in %s', Ext, FileName)
+end
 
 
 function [pathname, filename, ext] = myfileparts(filename)
