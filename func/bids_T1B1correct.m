@@ -1,7 +1,7 @@
-function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, FWHM, Target, Correct)
+function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, InvEff, B1Scaling, Realign, FWHM, Target, Correct, Fingerprint, B1correctM0)
 
 % FUNCTION bids_T1B1correct(BIDSroot, [NrShots], [EchoSpacing], [Expression], [subjects], [InvEff], [B1Scaling], [Realign],
-%    [FWHM], [Target], [Correct])
+%    [FWHM], [Target], [Correct], [Fingerprint], [B1correctM0])
 %
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"
@@ -16,7 +16,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P., Gruetter, R., 2010.
 %   MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field.
 %   NeuroImage 49, doi.org/10.1016/j.neuroimage.2009.10.002
-% 
+%
 % INPUT
 %   BIDSroot        - The root directory of the BIDS repository with all the subject sub-directories
 %   NrShots         - The number of shots in the inner loop, i.e. SlicesPerSlab * [PartialFourierInSlice-0.5 0.5].
@@ -54,6 +54,13 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %                     (default = 'derivatives')
 %   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in:
 %                     BIDSroot/derivatives/MP2RAGE_scripts
+%   Fingerprint     - If Fingerprint==true (not deafault) The T1 mapping and correction is performed using a
+%                     fingerprinting approach
+%   B1correctM0     - if 0 no correction is applied (default), 
+%                     if 1,2,3 applies a flip on the left right direction of the transmit field as an approximation
+%                     of the receive field. the number 1 2 3 refers to the left-right dimension only use this option
+%                     if anatomical data is well centred in the field of view (as provided by auto-align) and if the
+%                     Bias Field correction was enabled on the scanner
 %
 % EXAMPLES
 %   >> bids_T1B1correct('/project/3015046.06/bids')
@@ -75,6 +82,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %
 % Marcel Zwiers, 10/02/2023
 
+Debug = 0;
 
 %% Parse the input arguments
 if nargin<2
@@ -114,6 +122,12 @@ end
 if nargin<11 || isempty(Correct)
     Correct = true;
 end
+if nargin<12 || isempty(Fingerprint)
+    Fingerprint = false;
+end
+if nargin<13 || isempty(Fingerprint)
+    B1correctM0 = 0;
+end
 
 assert(contains(Expression.uni, '_'), 'The output will not be BIDS-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', Expression.uni)
 suffix = split(strtok(Expression.uni,'.'), '_');        % ASSUMPTION: The MP2RAGE image is stored with a unique suffix
@@ -131,11 +145,11 @@ for subject = dir(fullfile(BIDSroot, subjects))'
         sessions(1).folder = fullfile(subject.folder, subject.name);
         sessions(1).name   = '.';
     end
-    
+
     for session = sessions'
-        
+
         fprintf('Indexing (%i): %s\n', numel(MP2RAGE) + 1, fullfile(session.folder, session.name))
-        
+
         uni    = getfiles(session, Expression.uni);
         inv1   = getfiles(session, Expression.inv1);
         inv2   = getfiles(session, Expression.inv2);
@@ -159,13 +173,13 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             disp(char(B1Ref_.name))
             continue
         end
-        
+
         for n = 1:numel(uni)
-            
+
             index        = numel(MP2RAGE) + 1;
             [MP2RAGE{index}, EchoSpacing, NrShots] = PopulateMP2RAGEStructure(uni(n), inv1(n), inv2(n), EchoSpacing, NrShots);
             B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
-            B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images            
+            B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images
             if strcmp(Target, 'derivatives')
                 R1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE_scripts', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             else
@@ -179,15 +193,15 @@ for subject = dir(fullfile(BIDSroot, subjects))'
 
         end
     end
-    
+
 end
 
 
 %% Process all the images
 for n = 1:numel(MP2RAGE)
-    
+
     fprintf('\n--> Processing (%i/%i): %s\n', n, numel(MP2RAGE), MP2RAGE{n}.filenameUNI)
-    
+
     % Load the headers & data
     B1Src     = spm_vol_gz(fullfile(B1map{n}.folder, B1map{n}.name));
     B1Src_Vol = spm_read_vols(B1Src);
@@ -220,8 +234,23 @@ for n = 1:numel(MP2RAGE)
         B1img.img = B1Src_Vol;
     end
 
+    if Debug
+        figure(452)
+        subplot(121)
+        Orthoview(B1img.img/B1Scaling,[],[-0.8 1.1])
+        title(' After Coregisteration and Smoothing')
+        subplot(122)
+        Orthoview(B1Src_Vol/B1Scaling,[],[-0.8 1.1])
+        title(' Before Coregisteration ')
+    end
+
+    % Perform the unbiased B1-map estimation and the UNI image correction
+    B1img.img  = double(B1img.img) / B1Scaling;
+    MP2RAGEimg = load_untouch_nii(MP2RAGE{n}.filenameUNI);
+    MP2RAGESrc = spm_vol_gz(MP2RAGE{n}.filenameINV2);       % A bit redundant to unzip the image twice, but hey
+
     % Clean-up the temporarily unzipped/smoothed images
-    for TempVol = [B1Src, B1Ref_, INV2Ref]
+    for TempVol = [B1Src, B1Ref_, INV2Ref, MP2RAGESrc]
         if startsWith(TempVol.fname, tempdir)
             delete(TempVol.fname)
             if endsWith(TempVol.fname, '_smooth.nii')
@@ -230,20 +259,45 @@ for n = 1:numel(MP2RAGE)
         end
     end
     
-    % Perform the unbiased B1-map estimation and the UNI image correction
-    B1img.img        = double(B1img.img) / B1Scaling;
-    MP2RAGEimg       = load_untouch_nii(MP2RAGE{n}.filenameUNI);
-    [~, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
+    if Fingerprint == false
+
+        [~, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE{n}, [], InvEff);
+
+        % Compute the M0- and R1-map
+        INV2img            = load_untouch_nii(MP2RAGE{n}.filenameINV2);
+        [~, M0map , R1map] = T1M0estimateMP2RAGE(MP2RAGECorr, INV2img, MP2RAGE{n}, InvEff);
+
+    else
+
+        INV1img = load_untouch_nii(MP2RAGE{n}.filenameINV1);
+        INV2img = load_untouch_nii(MP2RAGE{n}.filenameINV2);
+        [INV1img, INV2img] = Correct_INV1INV2_withMP2RAGEuni(INV1img, INV2img, MP2RAGEimg, 0);
+        MP2RAGE{n}.invEff  =  InvEff;
+        [~, M0map.img, R1map.img] = MP2RAGE_dictionaryMatching(MP2RAGE{n}, INV1img.img, INV2img.img, B1img.img, [0.002,0.005], 1, B1img.img ~= 0);
     
-    % Compute the M0- and R1-map
-    MP2RAGEINV2img     = load_untouch_nii(MP2RAGE{n}.filenameINV2);
-    [~, M0map , R1map] = T1M0estimateMP2RAGE(MP2RAGECorr, MP2RAGEINV2img, MP2RAGE{n}, InvEff);
+        if Correct    
+             [MP2RAGE{n}.Intensity, MP2RAGE{n}.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE{n}.TR, MP2RAGE{n}.TIs, MP2RAGE{n}.FlipDegrees, MP2RAGE{n}.NZslices, MP2RAGE{n}.TRFLASH, 'normal', MP2RAGE{n}.invEff);
+             MP2RAGECorr     = MP2RAGEimg;
+             MP2RAGECorr.img = reshape(interp1(MP2RAGE{n}.T1vector, MP2RAGE{n}.Intensity, 1./R1map.img(:)), size(R1map.img));
+             MP2RAGECorr.img(isnan(MP2RAGECorr.img)) =- 0.5;
+             MP2RAGECorr.img = round(4095*(MP2RAGECorr.img + 0.5));
+        end
+
+    end
+    
+    if B1correctM0 ~= 0
+        M0map.img = M0map.img ./ flipdim(B1img.img,B1correctM0);
+    end
+
+    % data is only valid where B1 was mapped
+    R1map.img(B1img.img  == 0) = 0;
+    M0map.img(B1img.img  == 0) = 0;
 
     % Save the R1-map image
-    R1Hdr            = B1Src;
-    R1Hdr.fname      = R1mapname{n};
-    spm_write_vol_gz(R1Hdr, R1map)
-    
+    R1Hdr       = MP2RAGESrc;
+    R1Hdr.fname = R1mapname{n};
+    spm_write_vol_gz(R1Hdr, R1map.img)
+
     % Read & enrich the UNI json-file and write it as a R1-map json-file
     [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
     jsonR1map                     = jsondecode(fileread(fullfile(UNIpath, [UNIname '.json'])));
@@ -259,25 +313,33 @@ for n = 1:numel(MP2RAGE)
     fclose(fid);
 
     % Save the M0-map & json file
-    M0Hdr       = B1Src;
+    M0Hdr       = MP2RAGESrc;
     M0Hdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_M0map.nii');
-    spm_write_vol_gz(M0Hdr, M0map)
+    spm_write_vol_gz(M0Hdr, M0map.img)
     fid = fopen(spm_file(spm_file(M0Hdr.fname,'ext',''), 'ext','.json'), 'w');
+    fprintf(fid, '%s', jsonencode(jsonR1map));
+    fclose(fid);
+
+    % Save the B1-map & json file
+    B1Hdr       = MP2RAGESrc;
+    B1Hdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_B1map.nii');
+    spm_write_vol_gz(B1Hdr, B1img.img)
+    fid = fopen(spm_file(spm_file(B1Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
 
     % Save the corrected UNI image & json file
     if Correct
-        CorrHdr       = B1Src;
+        CorrHdr       = MP2RAGESrc;
         CorrHdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_desc-B1corr_UNIT1.nii');
-        spm_write_vol_gz(CorrHdr, MP2RAGECorr)
+        spm_write_vol_gz(CorrHdr, MP2RAGECorr.img)
         fid = fopen(spm_file(spm_file(CorrHdr.fname,'ext',''), 'ext','.json'), 'w');
         fprintf(fid, '%s', jsonencode(jsonR1map));
         fclose(fid);
     end
 
     % Adapt the scans.tsv file
-    if ~strcmp(Target, 'derivatives')
+    if ~startsWith(Target, 'derivatives')
         SubSes = split(UNIname, '_');
         if contains(UNIname, '_ses-')
             SubSes = SubSes(1:2);
@@ -365,13 +427,15 @@ function Vol = spm_write_vol_gz(Hdr, data)
 %
 % A wrapper around spm_write_vol that writes and zips .nii files
 
-[~, ~, Ext] = myfileparts(Hdr.fname);
-Hdr         = rmfield(Hdr, 'pinfo');
+[fpath, ~, Ext] = myfileparts(Hdr.fname);
+Hdr             = rmfield(Hdr, 'pinfo');
+[~,~]           = mkdir(fpath);
 switch Ext
     case '.nii.gz'
         Hdr.fname = spm_file(Hdr.fname, 'ext','');
         Vol       = spm_write_vol(Hdr, data);
         gzip(Hdr.fname)
+        delete(Hdr.fname)
     case '.nii'
         Vol = spm_write_vol(Hdr, data);
     otherwise
