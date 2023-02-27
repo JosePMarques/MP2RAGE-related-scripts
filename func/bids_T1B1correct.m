@@ -51,9 +51,8 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   FWHM            - FWHM used to gaussian smooth the B1 map and ensure that skull regions are populated with valid
 %                     B1 values. Default FWHM is 12. Pass FWHM = 0 if no smoothing is desired
 %   Target          - The target sub-directory in which the corrected B1-map is saved, e.g. 'anat'
-%                     (default = 'derivatives')
-%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in:
-%                     BIDSroot/derivatives/MP2RAGE_scripts
+%                     (default = 'derivatives/MP2RAGE_scripts')
+%   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in the BIDS derivatives folder
 %   Fingerprint     - If Fingerprint==true (not deafault) The T1 mapping and correction is performed using a
 %                     fingerprinting approach
 %   B1correctM0     - if 0 no correction is applied (default), 
@@ -117,7 +116,7 @@ if nargin<9 || isempty(FWHM)
     FWHM = 12;
 end
 if nargin<10 || isempty(Target)
-    Target = 'derivatives';
+    Target = 'derivatives/MP2RAGE_scripts';
 end
 if nargin<11 || isempty(Correct)
     Correct = true;
@@ -180,8 +179,8 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             [MP2RAGE{index}, EchoSpacing, NrShots] = PopulateMP2RAGEStructure(uni(n), inv1(n), inv2(n), EchoSpacing, NrShots);
             B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
             B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images
-            if strcmp(Target, 'derivatives')
-                R1mapname{index} = fullfile(BIDSroot, 'derivatives', 'MP2RAGE_scripts', subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
+            if startsWith(Target, 'derivatives')
+                R1mapname{index} = fullfile(BIDSroot, Target, subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             else
                 R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             end
