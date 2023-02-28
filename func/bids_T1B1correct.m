@@ -53,7 +53,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   Target          - The target sub-directory in which the corrected B1-map is saved, e.g. 'anat'
 %                     (default = 'derivatives/MP2RAGE_scripts')
 %   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in the BIDS derivatives folder
-%   Fingerprint     - If Fingerprint==true (not deafault) The T1 mapping and correction is performed using a
+%   Fingerprint     - If Fingerprint==true (not default) The T1 mapping and correction is performed using a
 %                     fingerprinting approach
 %   B1correctM0     - if 0 no correction is applied (default), 
 %                     if 1,2,3 applies a flip on the left right direction of the transmit field as an approximation
@@ -236,11 +236,11 @@ for n = 1:numel(MP2RAGE)
     if Debug
         figure(452)
         subplot(121)
-        Orthoview(B1img.img/B1Scaling,[],[-0.8 1.1])
-        title(' After Coregisteration and Smoothing')
+        Orthoview(B1img.img / B1Scaling, [], [-0.8 1.1])
+        title('After Coregisteration and Smoothing')
         subplot(122)
-        Orthoview(B1Src_Vol/B1Scaling,[],[-0.8 1.1])
-        title(' Before Coregisteration ')
+        Orthoview(B1Src_Vol / B1Scaling, [], [-0.8 1.1])
+        title('Before Coregisteration')
     end
 
     % Perform the unbiased B1-map estimation and the UNI image correction
@@ -285,12 +285,12 @@ for n = 1:numel(MP2RAGE)
     end
     
     if B1correctM0 ~= 0
-        M0map.img = M0map.img ./ flipdim(B1img.img,B1correctM0);
+        M0map.img = M0map.img ./ flipdim(B1img.img, B1correctM0);
     end
 
     % data is only valid where B1 was mapped
-    R1map.img(B1img.img  == 0) = 0;
-    M0map.img(B1img.img  == 0) = 0;
+    R1map.img(B1img.img == 0) = 0;
+    M0map.img(B1img.img == 0) = 0;
 
     % Save the R1-map image
     R1Hdr       = MP2RAGESrc;
