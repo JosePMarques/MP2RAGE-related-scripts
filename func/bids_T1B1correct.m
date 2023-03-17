@@ -161,7 +161,7 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             fprintf('Could not find B1-reference image for realignment with search term "%s\n', Expression.B1Ref)
             continue
         elseif ~isequal(numel(uni), numel(inv1), numel(inv2))
-            warning('Unequal number of UNI (%i), INV1 (%i) and INV2 (%i) images found with search terms "%s", "%s" and "%s"\n', numel(uni), numel(inv1), numel(inv2), expression.uni, Expression.inv1, Expression.inv2)
+            warning('Unequal number of UNI (%i), INV1 (%i) and INV2 (%i) images found with search terms "%s", "%s" and "%s"\n', numel(uni), numel(inv1), numel(inv2), Expression.uni, Expression.inv1, Expression.inv2)
             continue
         elseif numel(B1map_) ~= 1
             warning('Ambiguous (%i instead of 1) B1map-images found using "%s"\n', numel(B1map_), Expression.B1map)
@@ -250,7 +250,7 @@ for n = 1:numel(MP2RAGE)
 
     % Clean-up the temporarily unzipped/smoothed images
     for TempVol = [B1Src, B1Ref_, INV2Ref, MP2RAGESrc]
-        if startsWith(TempVol.fname, tempdir)
+        if startsWith(TempVol.fname, tempdir) && isfile(TempVol.fname)
             delete(TempVol.fname)
             if endsWith(TempVol.fname, '_smooth.nii')
                 delete(strrep(TempVol.fname, '_smooth.nii', '.nii'))
@@ -295,7 +295,7 @@ for n = 1:numel(MP2RAGE)
     % Save the R1-map image
     R1Hdr       = MP2RAGESrc;
     R1Hdr.fname = R1mapname{n};
-    spm_write_vol_gz(R1Hdr, R1map.img)
+    spm_write_vol_gz(R1Hdr, R1map.img);
 
     % Read & enrich the UNI json-file and write it as a R1-map json-file
     [UNIpath, UNIname, UNIext]    = myfileparts(MP2RAGE{n}.filenameUNI);
@@ -314,7 +314,7 @@ for n = 1:numel(MP2RAGE)
     % Save the M0-map & json file
     M0Hdr       = MP2RAGESrc;
     M0Hdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_M0map.nii');
-    spm_write_vol_gz(M0Hdr, M0map.img)
+    spm_write_vol_gz(M0Hdr, M0map.img);
     fid = fopen(spm_file(spm_file(M0Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
@@ -322,7 +322,7 @@ for n = 1:numel(MP2RAGE)
     % Save the B1-map & json file
     B1Hdr       = MP2RAGESrc;
     B1Hdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_B1map.nii');
-    spm_write_vol_gz(B1Hdr, B1img.img)
+    spm_write_vol_gz(B1Hdr, B1img.img);
     fid = fopen(spm_file(spm_file(B1Hdr.fname,'ext',''), 'ext','.json'), 'w');
     fprintf(fid, '%s', jsonencode(jsonR1map));
     fclose(fid);
@@ -331,7 +331,7 @@ for n = 1:numel(MP2RAGE)
     if Correct
         CorrHdr       = MP2RAGESrc;
         CorrHdr.fname = strrep(R1mapname{n}, '_R1map.nii', '_desc-B1corr_UNIT1.nii');
-        spm_write_vol_gz(CorrHdr, MP2RAGECorr.img)
+        spm_write_vol_gz(CorrHdr, MP2RAGECorr.img);
         fid = fopen(spm_file(spm_file(CorrHdr.fname,'ext',''), 'ext','.json'), 'w');
         fprintf(fid, '%s', jsonencode(jsonR1map));
         fclose(fid);

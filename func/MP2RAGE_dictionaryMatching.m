@@ -93,7 +93,6 @@ for B1 = B1vector
     ind_B1 = find(and(and(B1map>=B1, B1map<B1+deltaB1), mask==1));
     % https://bitbucket.org/asslaender/nyu_mrf_recon/src/master/example/MRF_recon_example.m
     % Dictionary matching
-    %     tic
 
     if ProbabilityEstimate == 0
 
@@ -134,7 +133,6 @@ for B1 = B1vector
 
 end
 
-% keyboard
 PD = reshape(PD, dims);
 R1 = reshape(R1, dims);
 T1 = 1 ./ R1;
