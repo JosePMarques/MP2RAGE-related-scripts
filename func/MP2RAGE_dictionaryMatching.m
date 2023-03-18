@@ -77,8 +77,10 @@ PD = zeros(prod(dims),1);
 %% make the matching per B1 value
 
 m = 0;
+fprintf('\nFinger printing B1-values: %f -> %f\n', B1vector([1 end]))
 for B1 = B1vector
 
+    % fprintf('%f', B1)
     m = m + 1;
     j = 0;
     %% create dictionary for the specific B1 value
