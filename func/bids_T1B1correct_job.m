@@ -38,6 +38,7 @@ if Realign
 else
     B1img.img = B1Src_Vol;
 end
+B1img.img(isnan(B1img.img)) = 0;
 
 if Debug
     figure(452)
