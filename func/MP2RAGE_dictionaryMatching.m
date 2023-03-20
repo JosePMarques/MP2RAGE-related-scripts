@@ -76,14 +76,14 @@ PD = zeros(prod(dims),1);
 
 %% make the matching per B1 value
 
-m = 0;
+count = 0;
 fprintf('\nFinger printing B1-values: %f -> %f\n', B1vector([1 end]))
 for B1 = B1vector
 
-    % fprintf('%f', B1)
-    m = m + 1;
-    j = 0;
+    count = count + 1;
+    
     %% create dictionary for the specific B1 value
+    j = 0;
     for R1val = R1vector
         j = j + 1;
         Signal(j,1:2) = 1*MPRAGEfunc(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.NZslices, MP2RAGE.TRFLASH, B1*MP2RAGE.FlipDegrees, 'normal', 1./R1val, MP2RAGE.invEff);
@@ -93,6 +93,11 @@ for B1 = B1vector
     %% dictionary Matching
 
     ind_B1 = find(and(and(B1map>=B1, B1map<B1+deltaB1), mask==1));
+    if rem(count, 10) == 0
+        fprintf('%f %i\n', B1, numel(ind_B1))
+    else
+        fprintf('%f %i, ', B1, numel(ind_B1))
+    end
     % https://bitbucket.org/asslaender/nyu_mrf_recon/src/master/example/MRF_recon_example.m
     % Dictionary matching
 

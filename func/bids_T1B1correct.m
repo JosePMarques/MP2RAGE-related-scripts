@@ -158,20 +158,20 @@ for subject = dir(fullfile(BIDSroot, subjects))'
         B1map_ = getfiles(session, Expression.B1map);
         B1Ref_ = getfiles(session, Expression.B1Ref);
         if isempty(uni) || isempty(B1map_)
-            fprintf('Could not find UNI & B1-map images with search terms "%s" and "%s"\n', Expression.uni, Expression.B1map)
+            fprintf('Could not find UNI & B1-map images with search terms "%s" and "%s"\n\n', Expression.uni, Expression.B1map)
             continue
         elseif Realign && isempty(B1Ref_)
-            fprintf('Could not find B1-reference image for realignment with search term "%s\n', Expression.B1Ref)
+            fprintf('Could not find B1-reference image for realignment with search term "%s\n\n', Expression.B1Ref)
             continue
         elseif ~isequal(numel(uni), numel(inv1), numel(inv2))
-            warning('Unequal number of UNI (%i), INV1 (%i) and INV2 (%i) images found with search terms "%s", "%s" and "%s"\n', numel(uni), numel(inv1), numel(inv2), Expression.uni, Expression.inv1, Expression.inv2)
+            warning('Unequal number of UNI (%i), INV1 (%i) and INV2 (%i) images found with search terms "%s", "%s" and "%s"\n\n', numel(uni), numel(inv1), numel(inv2), Expression.uni, Expression.inv1, Expression.inv2)
             continue
         elseif numel(B1map_) ~= 1
-            warning('Ambiguous (%i instead of 1) B1map-images found using "%s"\n', numel(B1map_), Expression.B1map)
+            warning('Ambiguous (%i instead of 1) B1map-images found using "%s"\n\n', numel(B1map_), Expression.B1map)
             disp(char(B1map_.name))
             continue
         elseif Realign && numel(B1Ref_) ~= 1
-            warning('Ambiguous (%i instead of 1) B1Ref-images found using "%s"\n', numel(B1Ref_), Expression.B1Ref)
+            warning('Ambiguous (%i instead of 1) B1Ref-images found using "%s"\n\n', numel(B1Ref_), Expression.B1Ref)
             disp(char(B1Ref_.name))
             continue
         end
@@ -188,7 +188,7 @@ for subject = dir(fullfile(BIDSroot, subjects))'
                 R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             end
 
-            fprintf('%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, R1mapname{index})
+            % fprintf('%s\n%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, B1Ref{index}.name, R1mapname{index})
 
             % Check the properties of this MP2RAGE protocol... this happens to be a very B1 insensitive protocol
             plotMP2RAGEproperties(MP2RAGE{index}, HG)

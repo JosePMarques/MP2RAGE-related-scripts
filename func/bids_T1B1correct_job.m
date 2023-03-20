@@ -79,7 +79,7 @@ else
     INV2img = load_untouch_nii(MP2RAGE.filenameINV2);
     [INV1img, INV2img] = Correct_INV1INV2_withMP2RAGEuni(INV1img, INV2img, MP2RAGEimg, 0);
     MP2RAGE.invEff  =  InvEff;
-    [~, M0map.img, R1map.img] = MP2RAGE_dictionaryMatching(MP2RAGE, INV1img.img, INV2img.img, B1img.img, [0.002,0.005], 1, B1img.img ~= 0);
+    [~, M0map.img, R1map.img] = MP2RAGE_dictionaryMatching(MP2RAGE, INV1img.img, INV2img.img, B1img.img, [0.002, 0.005], 1, B1img.img ~= 0);
 
     if Correct    
          [MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', MP2RAGE.invEff);
