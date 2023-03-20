@@ -7,7 +7,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 % A BIDS-aware wrapper ('bidsapp') around 'T1B1correctpackageTFL' function that reads and writes BIDS compliant data.
 % The MP2RAGE images are assumed to be stored with a suffix in the filename (e.g. as "sub-001_acq-MP2RAGE_inv1.nii.gz"
 % or as BIDS v1.5 images, e.g. as "sub-001_inv-1__MP2RAGE.nii.gz").
-% NB: Fieldmaps intended for MP2RAGE are not accomodated for.
+% NB: Fieldmaps intended for MP2RAGE are not accomoda.gzted for.
 %
 % 'T1B1correctpackageTFL' removes residual B1 bias from T1-maps estimated from the MP2RAGE data as suggested in:
 %
@@ -183,9 +183,9 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
             B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images
             if startsWith(Target, 'derivatives')
-                R1mapname{index} = fullfile(BIDSroot, Target, subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map.nii.gz'));   % Corrected R1-map
+                R1mapname{index} = fullfile(BIDSroot, Target, subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             else
-                R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map.nii.gz'));   % Corrected R1-map
+                R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
             end
 
             % fprintf('%s\n%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, B1Ref{index}.name, R1mapname{index})
@@ -201,7 +201,7 @@ end
 
 %% Process all the images
 for n = 1:numel(MP2RAGE)
-    fprintf('\n--> Processing (%i/%i): %s\n', n, numel(MP2RAGE), MP2RAGE{n}.filenameUNI)
+    fprintf('\n--> Processing (%i/%i): %s\n', n, numel(MP2RAGE), R1mapname{n})
     if Cluster
         qsubfeval('bids_T1B1correct_job', BIDSroot, InvEff, B1Scaling, Realign, FWHM, Target, Correct, ...
             Fingerprint, B1correctM0, MP2RAGE{n}, B1map{n}, B1Ref{n}, R1mapname{n}, 'timreq',60*60, 'memreq',4*1024^3);
