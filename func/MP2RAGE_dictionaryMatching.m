@@ -81,6 +81,11 @@ fprintf('\nFinger printing B1-values: %f -> %f\n', B1vector([1 end]))
 for B1 = B1vector
 
     count = count + 1;
+    if rem(count, 10) == 0
+        fprintf('%f\n', B1)
+    else
+        fprintf('%f, ', B1)
+    end
     
     %% create dictionary for the specific B1 value
     j = 0;
@@ -93,11 +98,6 @@ for B1 = B1vector
     %% dictionary Matching
 
     ind_B1 = find(and(and(B1map>=B1, B1map<B1+deltaB1), mask==1));
-    if rem(count, 10) == 0
-        fprintf('%f %i\n', B1, numel(ind_B1))
-    else
-        fprintf('%f %i, ', B1, numel(ind_B1))
-    end
     % https://bitbucket.org/asslaender/nyu_mrf_recon/src/master/example/MRF_recon_example.m
     % Dictionary matching
 
@@ -144,3 +144,5 @@ PD = reshape(PD, dims);
 R1 = reshape(R1, dims);
 T1 = 1 ./ R1;
 T1(mask==0) = 0;
+
+fprintf('Done\n')

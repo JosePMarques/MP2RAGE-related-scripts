@@ -183,9 +183,9 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             B1map{index} = B1map_;         % NB: The same B1-map is used for all MP2RAGE images
             B1Ref{index} = B1Ref_;         % NB: The same B1-ref is used for all MP2RAGE images
             if startsWith(Target, 'derivatives')
-                R1mapname{index} = fullfile(BIDSroot, Target, subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
+                R1mapname{index} = fullfile(BIDSroot, Target, subject.name, session.name, 'anat', strrep(uni(n).name, ['_' suffix], '_R1map.nii.gz'));   % Corrected R1-map
             else
-                R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map'));   % Corrected R1-map
+                R1mapname{index} = fullfile(session.folder, session.name, Target, strrep(uni(n).name, ['_' suffix], '_R1map.nii.gz'));   % Corrected R1-map
             end
 
             % fprintf('%s\n%s\n%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, B1map{index}.name, B1Ref{index}.name, R1mapname{index})

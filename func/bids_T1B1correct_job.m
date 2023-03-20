@@ -3,87 +3,74 @@ function bids_T1B1correct_job(BIDSroot, InvEff, B1Scaling, Realign, FWHM, Target
 
 % Performs the work for bids_T1B1correct()
 %
-% Marcel Zwiers, 17/03/2023
+% Marcel Zwiers, 20/03/2023
 
 Debug = 0;
 
 % Load the headers & data
-B1Src     = spm_vol_gz(fullfile(B1map.folder, B1map.name));
-B1Src_Vol = spm_read_vols(B1Src);
+B1Src    = spm_vol_gz(fullfile(B1map.folder, B1map.name));
+B1SrcImg = spm_read_vols(B1Src);
 if Realign || FWHM ~= 0
     B1Ref_ = spm_vol_gz(fullfile(B1Ref.folder, B1Ref.name));
 end
+UNIhdr      = spm_vol_gz(MP2RAGE.filenameUNI);
+UNIimg.img  = spm_read_vols(UNIhdr);
+INV2hdr     = spm_vol_gz(MP2RAGE.filenameINV2);
+INV2img.img = spm_read_vols(INV2hdr);
 
 % Smooth the B1-map in order to avoid influence of salt & pepper border noise
 if FWHM ~= 0
-    B1Ref_Vol   = spm_read_vols(B1Ref_);
+    B1RefImg    = spm_read_vols(B1Ref_);
     PixDim      = spm_imatrix(B1Src.mat);
-    Pre_Smooth  = double(B1Ref_Vol).^1 .* exp(1i*double(B1Src_Vol) / B1Scaling);
+    Pre_Smooth  = double(B1RefImg).^1 .* exp(1i*double(B1SrcImg) / B1Scaling);
     Post_Smooth = smooth3D(Pre_Smooth, FWHM, abs(PixDim(7:9)));
-    B1Src_Vol   = angle(Post_Smooth) * B1Scaling;
+    B1SrcImg    = angle(Post_Smooth) * B1Scaling;
     B1Src.fname = spm_file(B1Src.fname, 'suffix', '_smooth');
-    B1Src       = spm_write_vol(B1Src, B1Src_Vol);
+    B1Src       = spm_write_vol(B1Src, B1SrcImg);
 end
 
 % Realign & reslice the B1 reference image with the INV2 image
-INV2Ref = [];
 if Realign
-    INV2Ref   = spm_vol_gz(MP2RAGE.filenameINV2);
-    x         = spm_coreg(INV2Ref, B1Ref_);                 % Coregister B1Ref with INV2Ref
-    R         = B1Src.mat \ spm_matrix(x) * INV2Ref.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
-    B1img.img = NaN(INV2Ref.dim);
-    for z = 1:INV2Ref.dim(3)                                % Reslice the B1Src volume at the coordinates of each coregistered transverse slice of INV2Ref
-        B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2Ref.dim(1:2), 1);
+    x         = spm_coreg(INV2hdr, B1Ref_);                 % Coregister B1Ref with INV2Ref
+    R         = B1Src.mat \ spm_matrix(x) * INV2hdr.mat;    % R = Mapping from voxels in INV2Ref to voxels in B1Src
+    B1img.img = NaN(INV2hdr.dim);
+    for z = 1:INV2hdr.dim(3)                                % Reslice the B1Src volume at the coordinates of each coregistered transverse slice of INV2Ref
+        B1img.img(:,:,z) = spm_slice_vol(B1Src, R * spm_matrix([0 0 z]), INV2hdr.dim(1:2), 1);
     end
 else
-    B1img.img = B1Src_Vol;
+    B1img.img = B1SrcImg;
 end
 B1img.img(isnan(B1img.img)) = 0;
+B1img.img = double(B1img.img) / B1Scaling;
 
 if Debug
     figure(452)
     subplot(121)
-    Orthoview(B1img.img / B1Scaling, [], [-0.8 1.1])
+    Orthoview(B1img.img, [], [-0.8 1.1])
     title('After Coregisteration and Smoothing')
     subplot(122)
-    Orthoview(B1Src_Vol / B1Scaling, [], [-0.8 1.1])
+    Orthoview(B1SrcImg, [], [-0.8 1.1])
     title('Before Coregisteration')
 end
 
 % Perform the unbiased B1-map estimation and the UNI image correction
-B1img.img  = double(B1img.img) / B1Scaling;
-MP2RAGEimg = load_untouch_nii(MP2RAGE.filenameUNI);
-MP2RAGESrc = spm_vol_gz(MP2RAGE.filenameINV2);       % A bit redundant to unzip the image twice, but hey
-
-% Clean-up the temporarily unzipped/smoothed images
-for TempVol = [B1Src, B1Ref_, INV2Ref, MP2RAGESrc]
-    if startsWith(TempVol.fname, tempdir) && isfile(TempVol.fname)
-        delete(TempVol.fname)
-        if endsWith(TempVol.fname, '_smooth.nii')
-            delete(strrep(TempVol.fname, '_smooth.nii', '.nii'))
-        end
-    end
-end
-
 if Fingerprint == false
 
-    [~, MP2RAGECorr] = T1B1correctpackageTFL(B1img, MP2RAGEimg, [], MP2RAGE, [], InvEff);
-
     % Compute the M0- and R1-map
-    INV2img            = load_untouch_nii(MP2RAGE.filenameINV2);
+    [~, MP2RAGECorr]   = T1B1correctpackageTFL(B1img, UNIimg, [], MP2RAGE, [], InvEff);
     [~, M0map , R1map] = T1M0estimateMP2RAGE(MP2RAGECorr, INV2img, MP2RAGE, InvEff);
 
 else
 
-    INV1img = load_untouch_nii(MP2RAGE.filenameINV1);
-    INV2img = load_untouch_nii(MP2RAGE.filenameINV2);
-    [INV1img, INV2img] = Correct_INV1INV2_withMP2RAGEuni(INV1img, INV2img, MP2RAGEimg, 0);
-    MP2RAGE.invEff  =  InvEff;
+    INV1hdr            = spm_vol_gz(MP2RAGE.filenameINV1);
+    INV1img.img        = spm_read_vols(INV1hdr);
+    [INV1img, INV2img] = Correct_INV1INV2_withMP2RAGEuni(INV1img, INV2img, UNIimg, 0);
+    MP2RAGE.invEff     =  InvEff;
     [~, M0map.img, R1map.img] = MP2RAGE_dictionaryMatching(MP2RAGE, INV1img.img, INV2img.img, B1img.img, [0.002, 0.005], 1, B1img.img ~= 0);
 
     if Correct    
          [MP2RAGE.Intensity, MP2RAGE.T1vector] = MP2RAGE_lookuptable(2, MP2RAGE.TR, MP2RAGE.TIs, MP2RAGE.FlipDegrees, MP2RAGE.NZslices, MP2RAGE.TRFLASH, 'normal', MP2RAGE.invEff);
-         MP2RAGECorr     = MP2RAGEimg;
+         MP2RAGECorr     = UNIimg;
          MP2RAGECorr.img = reshape(interp1(MP2RAGE.T1vector, MP2RAGE.Intensity, 1./R1map.img(:)), size(R1map.img));
          MP2RAGECorr.img(isnan(MP2RAGECorr.img)) =- 0.5;
          MP2RAGECorr.img = round(4095*(MP2RAGECorr.img + 0.5));
@@ -95,12 +82,12 @@ if B1correctM0 ~= 0
     M0map.img = M0map.img ./ flipdim(B1img.img, B1correctM0);
 end
 
-% data is only valid where B1 was mapped
+% Data is only valid where B1 was mapped
 R1map.img(B1img.img == 0) = 0;
 M0map.img(B1img.img == 0) = 0;
 
 % Save the R1-map image
-R1Hdr       = MP2RAGESrc;
+R1Hdr       = UNIhdr;
 R1Hdr.fname = R1mapname;
 spm_write_vol_gz(R1Hdr, R1map.img);
 
@@ -119,7 +106,7 @@ fprintf(fid, '%s', jsonencode(jsonR1map));
 fclose(fid);
 
 % Save the M0-map & json file
-M0Hdr       = MP2RAGESrc;
+M0Hdr       = UNIhdr;
 M0Hdr.fname = strrep(R1mapname, '_R1map.nii', '_M0map.nii');
 spm_write_vol_gz(M0Hdr, M0map.img);
 fid = fopen(spm_file(spm_file(M0Hdr.fname,'ext',''), 'ext','.json'), 'w');
@@ -127,7 +114,7 @@ fprintf(fid, '%s', jsonencode(jsonR1map));
 fclose(fid);
 
 % Save the B1-map & json file
-B1Hdr       = MP2RAGESrc;
+B1Hdr       = UNIhdr;
 B1Hdr.fname = strrep(R1mapname, '_R1map.nii', '_B1map.nii');
 spm_write_vol_gz(B1Hdr, B1img.img);
 fid = fopen(spm_file(spm_file(B1Hdr.fname,'ext',''), 'ext','.json'), 'w');
@@ -136,7 +123,7 @@ fclose(fid);
 
 % Save the corrected UNI image & json file
 if Correct
-    CorrHdr       = MP2RAGESrc;
+    CorrHdr       = UNIhdr;
     CorrHdr.fname = strrep(R1mapname, '_R1map.nii', '_desc-B1corr_UNIT1.nii');
     spm_write_vol_gz(CorrHdr, MP2RAGECorr.img);
     fid = fopen(spm_file(spm_file(CorrHdr.fname,'ext',''), 'ext','.json'), 'w');
@@ -167,5 +154,15 @@ if ~startsWith(Target, 'derivatives')
         ScansTable(R1mapscan, :)  = UNIdata;
         fprintf('Updating %s:\n--> %s%s\n\n', scansfile, R1mapscan, sprintf('\t%s',UNIdata{:}))
         writetable(ScansTable, scansfile, 'FileType','text', 'WriteRowNames',true, 'Delimiter','\t')
+    end
+end
+
+% Clean-up the temporarily unzipped/smoothed images
+for TempVol = [B1Src, B1Ref_, INV1hdr, INV2hdr, UNIhdr]
+    if startsWith(TempVol.fname, tempdir) && isfile(TempVol.fname)
+        delete(TempVol.fname)
+        if endsWith(TempVol.fname, '_smooth.nii')
+            delete(strrep(TempVol.fname, '_smooth.nii', '.nii'))
+        end
     end
 end
