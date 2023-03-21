@@ -186,3 +186,10 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     end
     
 end
+
+% Clean-up the temporarily unzipped/smoothed images
+for TempVol = [INV1hdr, INV2hdr, UNIhdr]
+    if startsWith(TempVol.fname, tempdir) && isfile(TempVol.fname)
+        delete(TempVol.fname)
+    end
+end
