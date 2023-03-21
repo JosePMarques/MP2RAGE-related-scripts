@@ -23,7 +23,7 @@ function bids_RobustCombination(bidsroot, regularization, expression, subjects, 
 %   subjects        - A wildcard expression to select the BIDS subjects that are processed. All subjects are
 %                     processed if left empty (default), i.e. then subjects = 'sub-*'
 %   target          - The target sub-directory in which the combined image is saved, e.g. 'anat'
-%                     (default = 'derivatives')
+%                     (default = 'derivatives/MP2RAGE_combined')
 %
 % EXAMPLES
 %   >> bids_RobustCombination('/project/3015046.06/bids')
@@ -61,7 +61,7 @@ if ~contains(subjects, '*')
     subjects = [subjects '*'];
 end
 if nargin<5 || isempty(target)
-    target = 'derivatives';
+    target = 'derivatives/MP2RAGE_combined';
 end
 
 assert(contains(expression.uni, '_'), 'The output will not be bids-compliant because the uni-expression "%s" does not seem to contain a suffix (e.g. "_UNIT1")', expression.uni)
@@ -71,7 +71,7 @@ suffix = suffix{end};
 
 %% Get all the MP2RAGE images
 MP2RAGE = [];
-for subject = dir(fullfile(BIDSroot, subjects))'
+for subject = dir(fullfile(bidsroot, subjects))'
 
     assert(startsWith(subject.name, 'sub-'), ['Your "' subjects '" subjects input argument did not select BIDS subject directories. See the help for usage'])
     sessions = dir(fullfile(subject.folder, subject.name, 'ses-*'));
@@ -101,10 +101,10 @@ for subject = dir(fullfile(BIDSroot, subjects))'
             MP2RAGE(index).filenameINV1 = fullfile(inv1(n).folder, inv1(n).name);                  % Inversion Time 1 MP2RAGE T1w image
             MP2RAGE(index).filenameINV2 = fullfile(inv2(n).folder, inv2(n).name);                  % Inversion Time 2 MP2RAGE T1w image
             T1name                      = strrep(uni(n).name, ['_' strtok(suffix,'.')], '_T1w');   % Guess the suffix from the search expression
-            if strcmp(target, 'derivatives')
-                MP2RAGE(index).filenameOUT = fullfile(bidsroot, 'derivatives', 'MP2RAGE_scripts', subject.name, session.name, 'anat', T1name);  % T1w image without background noise;
+            if startsWith(target, 'derivatives')
+                MP2RAGE(index).filenameOUT = fullfile(bidsroot, target, subject.name, session.name, 'anat', T1name);  % T1w image without background noise
             else
-                MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                                    % T1w image without background noise;
+                MP2RAGE(index).filenameOUT = fullfile(session.folder, session.name, target, T1name);                  % T1w image without background noise
             end
 
             fprintf('%s\n%s\n%s\n--> %s\n\n', uni(n).name, inv1(n).name, inv2(n).name, MP2RAGE(index).filenameOUT)

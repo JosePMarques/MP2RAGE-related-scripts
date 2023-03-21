@@ -52,7 +52,7 @@ function bids_T1B1correct(BIDSroot, NrShots, EchoSpacing, Expression, subjects, 
 %   FWHM            - FWHM used to gaussian smooth the B1 map and ensure that skull regions are populated with valid
 %                     B1 values. Default FWHM is 12. Pass FWHM = 0 if no smoothing is desired
 %   Target          - The target sub-directory in which the corrected B1-map is saved, e.g. 'anat'
-%                     (default = 'derivatives/MP2RAGE_scripts')
+%                     (default = 'derivatives/MP2RAGE_combined')
 %   Correct         - If Correct==true (default) a B1 bias corrected UNI image is saved in the BIDS derivatives folder
 %   Fingerprint     - If Fingerprint==true (not default) The T1 mapping and correction is performed using a
 %                     fingerprinting approach
@@ -116,7 +116,7 @@ if nargin<9 || isempty(FWHM)
     FWHM = 12;
 end
 if nargin<10 || isempty(Target)
-    Target = 'derivatives/MP2RAGE_scripts';
+    Target = 'derivatives/MP2RAGE_combined';
 end
 if nargin<11 || isempty(Correct)
     Correct = true;
