@@ -133,7 +133,7 @@ for n = 1:numel(MP2RAGE)
     RobustCombination(MP2RAGE(n), regularization, HG);
 
     % Adapt the scans.tsv file
-    if ~strcmp(target, 'derivatives')
+    if ~startsWith(target, 'derivatives')
     
         subses = split(outname,'_');
         if contains(outname, '_ses-')
