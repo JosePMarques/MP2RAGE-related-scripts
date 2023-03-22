@@ -1,4 +1,4 @@
-function [B1vector Intensity Signal]=B1mappingSa2RAGElookuptable(nimage,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
+function [B1vector Intensity Signal]=B1mappingSa2RAGElookuptable(nimage,  MPRAGE_tr  ,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
 % usage
 % [B1map]=B1mappingSa2RAGE(Rationii,nimage,MPRAGE_tr,invtimesAB,flipangleABdegree,nZslices,FLASH_tr,varargin)
 % varargin{1} is a phase image
