@@ -1,5 +1,5 @@
 
-function [ output_args ] = Orthoview( volume ,varargin)
+function [ output mosaic ] = Orthoview( volume ,varargin)
 %[ output_args ] = Orthoview( volume ,varargin)
 %   varargin{1} is the position of the slices
 %   varargin{2} is the range of the colorbar
@@ -90,7 +90,7 @@ mosaic=cat(2,temp1,temp2,temp3);
 imagesc(flipdim(mosaic,1),scale);
 axis equal tight off
 colormap(gray)
-
+output=1;
 
 end
 
