@@ -1,4 +1,4 @@
-function [T1map, M0map, R1map]=T1estimateMP2RAGE(MP2RAGEnii,MP2RAGEINV2nii,MP2RAGE,varargin)
+function [T1map, M0map, R1map]=T1M0estimateMP2RAGE(MP2RAGEnii,MP2RAGEINV2nii,MP2RAGE,varargin)
 % usage
 % [T1map, M0map, R1map]=T1M0estimateMP2RAGE(MP2RAGEnii,MP2RAGE,varargin)
 % MP2RAGEnii is the nii structure resulting from loading the MP2RAGE
@@ -27,15 +27,12 @@ function [T1map, M0map, R1map]=T1estimateMP2RAGE(MP2RAGEnii,MP2RAGEINV2nii,MP2RA
 % MP2RAGE, a self bias-field corrected sequence for improved segmentation and T 1-mapping at high field
 % JP Marques, T Kober, G Krueger, W van der Zwaag, PF Van de Moortele, R.
 % Gruetter, Neuroimage 49 (2), 1271-1281, 2010
-%
-%
-
 
 if nargin==4
     invEFF=varargin{1};
 else
     invEFF=0.96;
-end;
+end
 
 [Intensity T1vector IntensityUncomb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal',invEFF);
 

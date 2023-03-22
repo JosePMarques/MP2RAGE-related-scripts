@@ -49,16 +49,16 @@ rootsquares_neg   = @(a, b, c)(-b - sqrt(b.^2 - 4*a.*c)) ./ (2*a);
 %% Load Data
 
 disp(['Loading images from: ' fileparts(MP2RAGE.filenameUNI)])
-MP2RAGEimg     = load_untouch_nii(MP2RAGE.filenameUNI);
-INV1img        = load_untouch_nii(MP2RAGE.filenameINV1);
-INV2img        = load_untouch_nii(MP2RAGE.filenameINV2);
-MP2RAGEimg.img = double(MP2RAGEimg.img);
-INV1img.img    = double(INV1img.img);
-INV2img.img    = double(INV2img.img);
+UNIhdr  = spm_vol_gz(MP2RAGE.filenameUNI);
+UNIimg  = double(spm_read_vols(UNIhdr));
+INV1hdr = spm_vol_gz(MP2RAGE.filenameINV1);
+INV1img = double(spm_read_vols(INV1hdr));
+INV2hdr = spm_vol_gz(MP2RAGE.filenameINV2);
+INV2img = double(spm_read_vols(INV2hdr));
 
-if min(MP2RAGEimg.img(:))>=0 && max(MP2RAGEimg.img(:))>=0.51
+if min(UNIimg(:))>=0 && max(UNIimg(:))>=0.51
     % converts MP2RAGE to -0.5 to 0.5 scale - assumes that it is getting only positive values
-    MP2RAGEimg.img = (MP2RAGEimg.img - max(MP2RAGEimg.img(:))/2) ./ max(MP2RAGEimg.img(:));
+    UNIimg = (UNIimg - max(UNIimg(:))/2) ./ max(UNIimg(:));
     integerformat = 1;
 else
     integerformat = 0;
@@ -68,19 +68,19 @@ end
 %% Compute correct INV1 dataset
 
 % Gives the correct polarity to INV1
-INV1img.img = sign(MP2RAGEimg.img) .* INV1img.img;
+INV1img = sign(UNIimg) .* INV1img;
 
 % Because the MP2RAGE INV1 and INV2 is a summ of squares data, while the
 % MP2RAGEimg is a phase sensitive coil combination.. some more maths has to
 % be performed to get a better INV1 estimate which here is done by assuming
 % both INV2 is closer to a real phase sensitive combination
 
-INV1pos = rootsquares_pos(-MP2RAGEimg.img, INV2img.img, -INV2img.img.^2 .* MP2RAGEimg.img);
-INV1neg = rootsquares_neg(-MP2RAGEimg.img, INV2img.img, -INV2img.img.^2 .* MP2RAGEimg.img);
+INV1pos = rootsquares_pos(-UNIimg, INV2img, -INV2img.^2 .* UNIimg);
+INV1neg = rootsquares_neg(-UNIimg, INV2img, -INV2img.^2 .* UNIimg);
 
-INV1final = INV1img.img;
-INV1final(abs(INV1img.img-INV1pos) >  abs(INV1img.img-INV1neg)) = INV1neg(abs(INV1img.img-INV1pos) >  abs(INV1img.img-INV1neg));
-INV1final(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg)) = INV1pos(abs(INV1img.img-INV1pos) <= abs(INV1img.img-INV1neg));
+INV1final = INV1img;
+INV1final(abs(INV1img-INV1pos) >  abs(INV1img-INV1neg)) = INV1neg(abs(INV1img-INV1pos) >  abs(INV1img-INV1neg));
+INV1final(abs(INV1img-INV1pos) <= abs(INV1img-INV1neg)) = INV1pos(abs(INV1img-INV1pos) <= abs(INV1img-INV1neg));
 
 
 %% Visualize the data
@@ -97,7 +97,7 @@ if isgraphics(HG)
     title('negative root')
     
     subplot(413)
-    Orthoview(INV1img.img, pos, [-200 200])
+    Orthoview(INV1img, pos, [-200 200])
     title('Phase Corrected Sum of Squares  root')
     
     subplot(414)
@@ -112,10 +112,10 @@ end
 
 while ~strcmpi(FinalChoice, 'y')
     
-    noiselevel = multiplyingFactor*mean(mean(mean(INV2img.img(1:end, end-10:end, end-10:end))));
+    noiselevel = multiplyingFactor*mean(mean(mean(INV2img(1:end, end-10:end, end-10:end))));
     
-    % MP2RAGEimgRobustScanner = MP2RAGErobustfunc(INV1img.img, INV2img.img, noiselevel.^2);
-    MP2RAGEimgRobustPhaseSensitive = MP2RAGErobustfunc(INV1final, INV2img.img, noiselevel.^2);
+    % MP2RAGEimgRobustScanner = MP2RAGErobustfunc(INV1img, INV2img, noiselevel.^2);
+    MP2RAGEimgRobustPhaseSensitive = MP2RAGErobustfunc(INV1final, INV2img, noiselevel.^2);
     
     if isgraphics(HG)
         
@@ -123,8 +123,8 @@ while ~strcmpi(FinalChoice, 'y')
         range = [-0.5 0.40];
         
         subplot(211)
-        Orthoview(MP2RAGEimg.img, pos, range)
-        title('MP2RAGE UNI_Image')
+        Orthoview(UNIimg, pos, range)
+        title('MP2RAGE UNI-Image')
         
         % subplot(312)
         % Orthoview(MP2RAGEimgRobustScanner, pos, range)
@@ -163,11 +163,12 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     % Save a nifti-file
     disp(['Saving: ' MP2RAGE.filenameOUT])
     if integerformat==0
-        MP2RAGEimg.img = MP2RAGEimgRobustPhaseSensitive;
+        UNIimg = MP2RAGEimgRobustPhaseSensitive;
     else
-        MP2RAGEimg.img = round(4095 * (MP2RAGEimgRobustPhaseSensitive + 0.5));
+        UNIimg = round(4095 * (MP2RAGEimgRobustPhaseSensitive + 0.5));
     end
-    save_untouch_nii(MP2RAGEimg, MP2RAGE.filenameOUT);
+    UNIhdr.fname = MP2RAGE.filenameOUT;
+    spm_write_vol_gz(UNIhdr, UNIimg);
     
     % Read & enrich the UNI json-file and write it as a T1w json-file
     [UNIpath, UNIname] = myfileparts(MP2RAGE.filenameUNI);
@@ -186,11 +187,9 @@ if isfield(MP2RAGE, 'filenameOUT') && ~isempty(MP2RAGE.filenameOUT)
     
 end
 
-
-function [pathname, filename, ext] = myfileparts(filename)
-%%
-% Robust against .nii.gz file extension
-
-[pathname, filename, ext2] = fileparts(filename);
-[~, filename, ext1]        = fileparts(filename);
-ext                        = [ext1 ext2];
+% Clean-up the temporarily unzipped/smoothed images
+for TempVol = [INV1hdr, INV2hdr, UNIhdr]
+    if startsWith(TempVol.fname, tempdir) && isfile(TempVol.fname)
+        delete(TempVol.fname)
+    end
+end
