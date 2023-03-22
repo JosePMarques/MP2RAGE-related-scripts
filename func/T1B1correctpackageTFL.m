@@ -156,7 +156,8 @@ end
 T1temp                        = MP2RAGEimg;
 
 brain.img(B1img.img==0)       = 0;
-brain.img(MP2RAGEimg.img==0)  = 0;
+brain.img(MP2RAGEimg.img==...
+    min(MP2RAGEimg.img(:)))   = 0;
 T1temp.img(brain.img==0)      = 0;
 T1temp.img(brain.img==1)      = 0;
 B1img.img(brain.img==0)       = 0;
