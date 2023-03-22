@@ -40,7 +40,7 @@ function [B1temp, T1temp, MP2RAGEcorrected] = T1B1correctpackage(Sa2RAGEimg, B1i
 % 
 % Please cite:
 %  Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
-%  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271–1281. doi:10.1016/j.neuroimage.2009.10.002
+%  Marques, J.P., Kober, T., Krueger, G., van der Zwaag, W., Van de Moortele, P.-F., Gruetter, R., 2010a. MP2RAGE, a self bias-field corrected sequence for improved segmentation and T1-mapping at high field. NeuroImage 49, 1271?1281. doi:10.1016/j.neuroimage.2009.10.002
 
 if nargin<8 || isempty(invEFF)
     invEFF = 0.99;
@@ -132,13 +132,13 @@ for t1val = T1_vector
 end
 
 %% make the matrix  Sa2RAGEMatrix into B1_matrix(T1,ratio)
-npoints = 40;
+npoints = 100;
 Sa2RAGE_vector = linspace(min(Sa2RAGEmatrix(:)), max(Sa2RAGEmatrix(:)), npoints);
 k = 0;
 for t1val = T1_vector
     k = k+1;
     try
-        B1matrix(k,:) = interp1(Sa2RAGEmatrix(k,:), B1_vector, Sa2RAGE_vector, 'pchirp');
+        B1matrix(k,:) = interp1(Sa2RAGEmatrix(k,:), B1_vector, Sa2RAGE_vector, 'pchip');
     catch
         B1matrix(k,:) = 0;
     end
@@ -150,7 +150,7 @@ k = 0;
 for b1val = B1_vector
     k = k+1;
     try
-        T1matrix(k,:) = interp1(MP2RAGEmatrix(k,:), T1_vector, MP2RAGE_vector, 'pchirp');
+        T1matrix(k,:) = interp1(MP2RAGEmatrix(k,:), T1_vector, MP2RAGE_vector, 'pchip');
     catch
         temp              = MP2RAGEmatrix(k,:);
         temp(isnan(temp)) = linspace(-0.5 - eps, -1, length(find(isnan(temp))));
